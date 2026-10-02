@@ -126,6 +126,7 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
       <p>Files and columns are paired by section number however they are named (Sec 2.4, Section 1.5, HW 2.4, Part 2, Pt II, Part B). When a section has more than one Canvas column, the WeBWorK or homework grade column is chosen over written work, upload, or rubric columns. Rubric rows are matched to Canvas by the abc123 ID when the export includes one, otherwise by full name, allowing names in a different order or with middle names and initials missing. Names that still cannot be matched are listed for you to pick by hand.</p>
       <p>A student is only scored when every problem has an actual rating (0 or 1) in the rubric file. Blank ratings are never treated as 0: if the Canvas backup column has no score either, the student's cell is left blank so nothing is entered in Canvas. A rubric that is only partly rated is also left blank.</p>
       <p>If a student has no row at all in the rubric file (or no rubric file is loaded for the set), the Canvas backup column is used instead: the student's WeBWorK percentage times their written or upload score divided by that column's points possible. For example, 90% in WeBWorK with 3 of 4 on the upload gives 67.50.</p>
+      <p>A 0 is entered in Canvas only when it comes from multiplying by a 0 rating in a rubric export: either the rubric zeroed out WeBWorK credit the student earned, or every problem was rated 0. A 0 that would come only from WeBWorK scores of 0, or from the Canvas backup column, is left blank and shown as "0 held" in the preview.</p>
       <p>For each problem: WeBWorK score (0 to 1) × problem value × rubric points (1 or 0). The products are summed and divided by the total problem value for the set, then multiplied by 100 and rounded to two decimals. Students in Canvas with no WeBWorK record for a set are left untouched.</p>
     </details>
   </section>
@@ -318,7 +319,7 @@ function computeSet(ww,rb,canvas,opts,backup){
   const link=rb?linkRubric(rb,canvas,ww,opts.manual):{map:new Map(),unmatched:[],guesses:[]};
   const bkPts=backup?parseFloat(backup.points):NaN;
   const useBk=!!backup&&isFinite(bkPts)&&bkPts>0;
-  const results=new Map(); let filled=0, noRubric=0, noWW=0, fromBackup=0;
+  const results=new Map(); let filled=0, noRubric=0, noWW=0, fromBackup=0, heldZero=0;
   canvas.students.forEach(s=>{
     const login=s.login.toLowerCase();
     const w=ww.students.get(login);
@@ -330,16 +331,26 @@ function computeSet(ww,rb,canvas,opts,backup){
     const rated=r?covered.filter(p=>isFinite(r.pts[p.num])).length:0;
     const hasRubric=!!r&&covered.length>0&&rated===covered.length;
     const partial=!!r&&rated>0&&!hasRubric;
-    let raw=0, earned=0;
+    let raw=0, earned=0, zeroedByRubric=0;
     ww.problems.forEach(p=>{
       const sc=parseFloat(w.row[p.col]); const score=isFinite(sc)?sc:0;
       raw+=score*p.value;
       const rv=hasRubric&&isFinite(r.pts[p.num])?r.pts[p.num]:0;
       earned+=score*p.value*rv;
+      /* credit removed specifically by a 0 rating in the rubric export */
+      if(hasRubric&&covered.includes(p)&&r.pts[p.num]===0) zeroedByRubric+=score*p.value;
     });
+    /* every covered problem rated 0 in the rubric export */
+    const allRubricZero=hasRubric&&covered.every(p=>r.pts[p.num]===0);
     const T=ww.totalValue>0?ww.totalValue:1;
     if(hasRubric){
-      results.set(s.row,{state:'ok',pct:Math.round(earned/T*10000)/100}); filled++; return;
+      const pct=Math.round(earned/T*10000)/100;
+      if(pct===0&&!(zeroedByRubric>0||allRubricZero)){
+        heldZero++;
+        results.set(s.row,{state:'blank',zeroHeld:true,reason:'Would be 0, but not because of a 0 in the rubric export (no WeBWorK credit to multiply), left blank'});
+        return;
+      }
+      results.set(s.row,{state:'ok',pct,rubricZero:pct===0}); filled++; return;
     }
     if(r){ /* the rubric has a row for this student but it is not fully rated: never guess */
       noRubric++;
@@ -351,7 +362,13 @@ function computeSet(ww,rb,canvas,opts,backup){
       const v=parseFloat(cell);
       if(cell!==''&&isFinite(v)){
         const frac=Math.max(0,Math.min(1,v/bkPts));
-        results.set(s.row,{state:'backup',pct:Math.round(raw/T*frac*10000)/100,detail:cell+' of '+backup.points});
+        const pct=Math.round(raw/T*frac*10000)/100;
+        if(pct===0){
+          heldZero++;
+          results.set(s.row,{state:'blank',zeroHeld:true,reason:'Canvas backup column would give 0, which is not a 0 from a rubric export, left blank'});
+          return;
+        }
+        results.set(s.row,{state:'backup',pct,detail:cell+' of '+backup.points});
         fromBackup++; filled++; return;
       }
     }
@@ -359,7 +376,7 @@ function computeSet(ww,rb,canvas,opts,backup){
     results.set(s.row,{state:'blank',partial,reason:partial?'Rubric only partly rated, left blank':'No rubric rating or upload score yet, left blank'});
   });
   const mismatch = rb ? ww.problems.map(p=>p.num).filter(n=>!rb.questions.includes(n)) : [];
-  return {results,filled,noRubric,noWW,fromBackup,unmatched:link.unmatched,guesses:link.guesses,mismatch};
+  return {results,filled,noRubric,noWW,fromBackup,heldZero,unmatched:link.unmatched,guesses:link.guesses,mismatch};
 }
 
 function buildOutput(canvas,assignments,opts){
@@ -368,10 +385,11 @@ function buildOutput(canvas,assignments,opts){
   assignments.forEach(a=>{
     a.calc.results.forEach((res,rowIdx)=>{
       if(res.pct==null) return;
+      if(res.pct===0&&!res.rubricZero) return; /* a 0 is only written when a rubric 0 produced it */
       const row=rows[rowIdx];
       while(row.length<=a.col) row.push('');
       if(!opts.overwrite && (row[a.col]||'').trim()!==''){skippedExisting++;return;}
-      row[a.col]=res.pct.toFixed(2);
+      row[a.col]=res.pct===0?'0':res.pct.toFixed(2);
     });
   });
   return {csv:toCSV(rows),skippedExisting};
@@ -506,6 +524,7 @@ function render(){
       if(!rb&&!bkCol) res+=' <span class="pill bad">No rubric or backup</span>';
       if(calc.fromBackup) res+=` <span class="pill backup">${calc.fromBackup} from Canvas column</span>`;
       if(calc.noRubric) res+=` <span class="pill flag">${calc.noRubric} left blank</span>`;
+      if(calc.heldZero) res+=` <span class="pill flag">${calc.heldZero} zero${calc.heldZero===1?'':'s'} not from rubric, left blank</span>`;
       if(rb&&calc.unmatched.length) res+=` <span class="pill bad">${calc.unmatched.length} unmatched</span>`;
     }
     html+=`<tr><td><strong>${esc(w.label)}</strong><div style="color:var(--muted);font-size:.78rem">${esc(w.setName||w.filename)}</div></td>
@@ -558,7 +577,7 @@ function render(){
       p+=`<tr><td class="name">${esc(s.name)}</td>`;
       assignments.forEach(a=>{
         const r=a.calc.results.get(s.row)||{state:'none'};
-        if(r.state==='blank') p+=`<td class="none flag" title="${esc(r.reason)}">${r.partial?'partial':'blank'}</td>`;
+        if(r.state==='blank') p+=`<td class="none flag" title="${esc(r.reason)}">${r.zeroHeld?'0 held':r.partial?'partial':'blank'}</td>`;
         else if(r.pct==null) p+=`<td class="none">·</td>`;
         else p+=`<td class="num${r.state==='backup'?' bk':''}${r.pct===0&&r.state==='ok'?' zero':''}"${r.detail?` title="Canvas upload score ${esc(r.detail)}"`:''}>${r.pct.toFixed(2)}</td>`;
       });
