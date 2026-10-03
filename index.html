@@ -82,6 +82,24 @@ button.primary:disabled{opacity:.45;cursor:not-allowed}
 .empty{color:var(--muted);font-size:.9rem;margin:0}
 details.formula{margin-top:14px;font-size:.88rem;color:var(--muted)}
 details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
+.howto{margin:10px 0 16px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.howto details{border-top:1px solid var(--line)}
+.howto details:first-child{border-top:0}
+.howto summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;padding:11px 14px;font-weight:600;font-size:.92rem;background:var(--bg)}
+.howto summary::-webkit-details-marker{display:none}
+.howto summary::before{content:"";width:7px;height:7px;border-right:2px solid var(--orange);border-bottom:2px solid var(--orange);transform:rotate(-45deg);transition:transform .15s;flex:none}
+.howto details[open] summary::before{transform:rotate(45deg)}
+.howto summary:focus-visible{outline:2px solid var(--orange);outline-offset:-2px}
+.howto .body{padding:4px 16px 14px 34px;font-size:.88rem}
+.howto ol{margin:8px 0 0;padding-left:18px}
+.howto li{margin:4px 0}
+.howto p.note{margin:10px 0 0;color:var(--muted)}
+.howto .ui{font-weight:600;color:var(--navy)}
+.howto a{color:var(--orange);font-weight:600}
+.req{display:flex;gap:12px;align-items:flex-start;margin:0 0 22px;padding:12px 16px;background:var(--flag-bg);color:var(--flag);border:1px solid var(--flag);border-radius:8px;font-size:.9rem;max-width:880px}
+.req strong{display:block;color:var(--flag)}
+.req a{color:inherit;font-weight:600}
+.req .ic{font-size:1.1rem;line-height:1.3}
 @media (max-width:600px){main{padding:20px 14px 48px} h1{font-size:1.4rem}}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
@@ -90,9 +108,51 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
 <main>
   <h1>WeBWorK to Canvas homework grades</h1>
   <p class="lede">Each WeBWorK problem score is multiplied by the matching rubric score (1 or 0), weighted by the problem value, totaled, and written into the Canvas column you choose as a percentage out of 100. Files are read in your browser and never uploaded anywhere.</p>
+  <div class="req" role="note">
+    <span class="ic" aria-hidden="true">&#9888;</span>
+    <div><strong>Requires the Tampermonkey Rubric Export Toolbar</strong>The written or upload rubric exports this tool reads are created by the Rubric Toolbar userscript, which runs in the Tampermonkey browser extension and adds an Export Rubric Scores button to Canvas SpeedGrader. <a href="rubric-export-setup.html">Set up Tampermonkey and the Rubric Toolbar</a> before using this tool.</div>
+  </div>
 
   <section class="step">
     <h2>Add your files</h2>
+    <div class="howto">
+      <details>
+        <summary>How to get the Canvas gradebook export</summary>
+        <div class="body">
+          <ol>
+            <li>In your Canvas course, open <span class="ui">Grades</span> from the course navigation.</li>
+            <li>Click <span class="ui">Export</span> at the top right of the Gradebook.</li>
+            <li>Choose <span class="ui">Export Entire Gradebook</span>. The .csv file downloads to your computer.</li>
+          </ol>
+          <p class="note">Make sure the homework assignments you want filled already exist in Canvas so their columns appear in the export. Open the file only if needed and do not save changes to it before loading it here.</p>
+        </div>
+      </details>
+      <details>
+        <summary>How to get the written or upload rubric exports</summary>
+        <div class="body">
+          <ol>
+            <li>Find the written or upload assignment for the homework set and click the <span class="ui">SpeedGrader</span> option.</li>
+            <li>Click the <span class="ui">Export Rubric Scores</span> button on the Rubric Toolbar.</li>
+            <li>Repeat for each homework set you want to score. Load all of the rubric files together in the box below.</li>
+          </ol>
+          <p class="note">First time? <a href="rubric-export-setup.html">Set up Tampermonkey and the Rubric Toolbar</a> before following these steps.</p>
+          <p class="note">Finish rating every problem on the rubric before exporting. A student whose rubric is only partly rated is left blank rather than guessed.</p>
+        </div>
+      </details>
+      <details>
+        <summary>How to get the WeBWorK scoring files</summary>
+        <div class="body">
+          <ol>
+            <li>Click on <span class="ui">Scoring Tools</span>.</li>
+            <li>Select the sets you want to export.</li>
+            <li>Make sure that only <span class="ui">Record scores for each set</span> is selected.</li>
+            <li>Click the <span class="ui">Score selected set(s) and save to:</span> button.</li>
+            <li>You will see two files created per homework set. Download the first file, which ends in <span class="ui">scr.csv</span>, for each homework set.</li>
+            <li>Upload those files in the <span class="ui">WeBWorK scoring files</span> box below.</li>
+          </ol>
+        </div>
+      </details>
+    </div>
     <p class="hint">Drop files onto a box or click it to browse. Each file is identified by its contents, so a file placed in the wrong box is sorted automatically.</p>
     <div class="drops">
       <div class="drop" id="dropCanvas">
@@ -100,15 +160,15 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
         <input type="file" accept=".csv,text/csv" id="inCanvas" aria-label="Canvas gradebook export">
         <div class="status" id="stCanvas"></div>
       </div>
-      <div class="drop" id="dropWW">
-        <strong>WeBWorK scoring files</strong><span class="sub">One .csv per homework set</span>
-        <input type="file" accept=".csv,text/csv" multiple id="inWW" aria-label="WeBWorK scoring files">
-        <div class="status" id="stWW"></div>
-      </div>
       <div class="drop" id="dropRB">
         <strong>Written or upload rubric exports</strong><span class="sub">One .csv per homework set</span>
         <input type="file" accept=".csv,text/csv" multiple id="inRB" aria-label="Rubric exports">
         <div class="status" id="stRB"></div>
+      </div>
+      <div class="drop" id="dropWW">
+        <strong>WeBWorK scoring files</strong><span class="sub">One .csv per homework set</span>
+        <input type="file" accept=".csv,text/csv" multiple id="inWW" aria-label="WeBWorK scoring files">
+        <div class="status" id="stWW"></div>
       </div>
     </div>
   </section>
