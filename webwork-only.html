@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WeBWorK Only Export</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F6F9; --surface:#FFFFFF; --ink:#17202B; --muted:#5A6676; --line:#D6DCE4;
+  --navy:#0C2340; --orange:#E5541C; --orange-soft:#FDEDE5;
+  --flag:#9A5B00; --flag-bg:#FFF4D6; --bad:#B42318; --bad-bg:#FDECEA; --ok:#1D6B45;
+  --zero:#98A2B0; --bk:#1F4E8C; --bk-bg:#E6EEF9;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E151D; --surface:#16202B; --ink:#E6EBF1; --muted:#9AA6B5; --line:#2A3847;
+    --navy:#BFD0E6; --orange:#F47A4A; --orange-soft:#3A2419;
+    --flag:#F2C265; --flag-bg:#382C10; --bad:#F59A8F; --bad-bg:#3A1C19; --ok:#6FCF9C; --zero:#6B7888; --bk:#9CC0F0; --bk-bg:#182C45;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E151D; --surface:#16202B; --ink:#E6EBF1; --muted:#9AA6B5; --line:#2A3847;
+  --navy:#BFD0E6; --orange:#F47A4A; --orange-soft:#3A2419;
+  --flag:#F2C265; --flag-bg:#382C10; --bad:#F59A8F; --bad-bg:#3A1C19; --ok:#6FCF9C; --zero:#6B7888; --bk:#9CC0F0; --bk-bg:#182C45;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+main{max-width:1180px;margin:0 auto;padding:32px 20px 64px}
+h1{font-size:1.75rem;line-height:1.2;margin:0 0 6px;color:var(--navy);font-weight:700;letter-spacing:-0.01em}
+.lede{margin:0 0 28px;color:var(--muted);max-width:70ch}
+h2{font-size:1.05rem;margin:0 0 4px;font-weight:600}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:18px}
+.step > p.hint{margin:0 0 14px;color:var(--muted);font-size:.9rem}
+.drops{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.drop{position:relative;border:1.5px dashed var(--line);border-radius:8px;padding:16px;min-height:118px;transition:border-color .15s,background .15s}
+.drop.hover{border-color:var(--orange);background:var(--orange-soft)}
+.drop.done{border-style:solid;border-color:var(--ok)}
+.drop strong{display:block;font-weight:600}
+.drop .sub{color:var(--muted);font-size:.85rem}
+.drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.drop .status{margin-top:8px;font-size:.85rem;color:var(--ok);word-break:break-word}
+.drop .status.err{color:var(--bad)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;white-space:nowrap}
+th{background:var(--bg);font-weight:600;color:var(--muted);font-size:.8rem}
+tr:last-child td{border-bottom:0}
+select{font:inherit;font-size:.85rem;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);max-width:340px}
+select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.78rem;font-weight:500}
+.pill.flag{background:var(--flag-bg);color:var(--flag)}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.ok{color:var(--ok)}
+.opts{display:flex;flex-wrap:wrap;gap:18px;margin:14px 0 0;font-size:.9rem}
+.opts label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.issues{margin:14px 0 0;padding:12px 14px;background:var(--flag-bg);color:var(--flag);border-radius:8px;font-size:.88rem}
+.issues ul{margin:6px 0 0;padding-left:18px}
+.preview th.set{white-space:normal;min-width:84px;max-width:120px;font-size:.75rem;line-height:1.3}
+.preview td.num{text-align:right}
+.preview td.zero{color:var(--zero)}
+.preview td.flag{background:var(--flag-bg);color:var(--flag)}
+.preview td.bk{background:var(--bk-bg);color:var(--bk)}
+.pill.backup{background:var(--bk-bg);color:var(--bk)}
+.preview td.none{color:var(--zero);text-align:center}
+.preview td.none.flag{background:var(--flag-bg);color:var(--flag);font-size:.78rem}
+.preview td.name{position:sticky;left:0;background:var(--surface);font-weight:500}
+.preview th:first-child{position:sticky;left:0;z-index:1}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin:10px 0 0;font-size:.82rem;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px;background:var(--sw)}
+.actions{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+button.primary{font:inherit;font-weight:600;padding:11px 20px;border-radius:8px;border:0;background:var(--orange);color:#fff;cursor:pointer}
+button.primary:disabled{opacity:.45;cursor:not-allowed}
+.msg{font-size:.9rem;color:var(--muted)}
+.msg.err{color:var(--bad)}
+.msg.good{color:var(--ok)}
+.empty{color:var(--muted);font-size:.9rem;margin:0}
+details.formula{margin-top:14px;font-size:.88rem;color:var(--muted)}
+details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
+.howto{margin:10px 0 16px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.howto details{border-top:1px solid var(--line)}
+.howto details:first-child{border-top:0}
+.howto summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;padding:11px 14px;font-weight:600;font-size:.92rem;background:var(--bg)}
+.howto summary::-webkit-details-marker{display:none}
+.howto summary::before{content:"";width:7px;height:7px;border-right:2px solid var(--orange);border-bottom:2px solid var(--orange);transform:rotate(-45deg);transition:transform .15s;flex:none}
+.howto details[open] summary::before{transform:rotate(45deg)}
+.howto summary:focus-visible{outline:2px solid var(--orange);outline-offset:-2px}
+.howto .body{padding:4px 16px 14px 34px;font-size:.88rem}
+.howto ol{margin:8px 0 0;padding-left:18px}
+.howto li{margin:4px 0}
+.howto p.note{margin:10px 0 0;color:var(--muted)}
+.howto .ui{font-weight:600;color:var(--navy)}
+.howto a{color:var(--orange);font-weight:600}
+.req{display:flex;gap:12px;align-items:flex-start;margin:0 0 22px;padding:12px 16px;background:var(--flag-bg);color:var(--flag);border:1px solid var(--flag);border-radius:8px;font-size:.9rem;max-width:880px}
+.req strong{display:block;color:var(--flag)}
+.req a{color:inherit;font-weight:600}
+.req .ic{font-size:1.1rem;line-height:1.3}
+@media (max-width:600px){main{padding:20px 14px 48px} h1{font-size:1.4rem}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+.crumb{margin:0 0 10px;font-size:.88rem}
+.crumb a{color:var(--orange);font-weight:600;text-decoration:none}
+.crumb a:hover{text-decoration:underline}
+.mode{border:1px solid var(--line);border-radius:8px;padding:12px 16px 14px;margin:10px 0 16px;display:flex;flex-wrap:wrap;gap:10px 28px}
+.mode legend{font-weight:600;font-size:.92rem;padding:0 6px}
+.mode label{display:flex;gap:8px;align-items:baseline;cursor:pointer;font-size:.9rem}
+.mode label strong{font-weight:600}
+</style>
+</head>
+<body>
+<main>
+  <p class="crumb"><a href="index.html">&larr; All export types</a></p>
+  <h1>WeBWorK Only Export</h1>
+  <p class="lede">Load one Canvas gradebook export and one WeBWorK totals file. Choose whether each WeBWorK set total is written as a percentage out of 100 or as a score out of the Canvas column's points possible, then pick the column to fill. Files are read in your browser and never uploaded anywhere.</p>
+
+  <section class="step">
+    <h2>Add your files</h2>
+    <div class="howto">
+      <details>
+        <summary>How to get the Canvas gradebook export</summary>
+        <div class="body">
+          <ol>
+            <li>In your Canvas course, open <span class="ui">Grades</span> from the course navigation.</li>
+            <li>Click <span class="ui">Export</span> at the top right of the Gradebook.</li>
+            <li>Choose <span class="ui">Export Entire Gradebook</span>. The .csv file downloads to your computer.</li>
+          </ol>
+          <p class="note">Make sure the WeBWorK homework assignments you want filled already exist in Canvas so their columns appear in the export. Exports with a single Student column and exports with separate LastName and FirstName columns both work.</p>
+        </div>
+      </details>
+      <details>
+        <summary>How to get the WeBWorK totals file</summary>
+        <div class="body">
+          <ol>
+            <li>Click on <span class="ui">Scoring Tools</span>.</li>
+            <li>Select every set you want to export.</li>
+            <li>Click the <span class="ui">Score selected set(s) and save to:</span> button.</li>
+            <li>Download the file ending in <span class="ui">totals.csv</span>.</li>
+            <li>Upload that file in the <span class="ui">WeBWorK totals file</span> box below.</li>
+          </ol>
+          <p class="note">The totals file can include every section of the course. Only students in your Canvas export are used.</p>
+        </div>
+      </details>
+    </div>
+    <p class="hint">Drop a file onto a box or click it to browse. Each file is identified by its contents, so a file placed in the wrong box is sorted automatically.</p>
+    <div class="drops">
+      <div class="drop" id="dropCanvas">
+        <strong>Canvas gradebook export</strong><span class="sub">One .csv file</span>
+        <input type="file" accept=".csv,text/csv" id="inCanvas" aria-label="Canvas gradebook export">
+        <div class="status" id="stCanvas"></div>
+      </div>
+      <div class="drop" id="dropWW">
+        <strong>WeBWorK totals file</strong><span class="sub">One .csv file with every set</span>
+        <input type="file" accept=".csv,text/csv" id="inWW" aria-label="WeBWorK totals file">
+        <div class="status" id="stWW"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step">
+    <h2>Match sets to Canvas columns</h2>
+    <fieldset class="mode">
+      <legend>What should go in the Canvas column?</legend>
+      <label><input type="radio" name="mode" value="pct"> <span><strong>Percentage</strong> out of 100, for example 91.85</span></label>
+      <label><input type="radio" name="mode" value="pts" checked> <span><strong>Score</strong> out of the column's points possible, for example 24.80 out of 27</span></label>
+    </fieldset>
+    <p class="hint">Each WeBWorK set is paired with the Canvas column that shares its name and number, favoring WeBWorK homework columns. Sets with no credit for any of your students yet are left unfilled until you choose a column.</p>
+    <div id="sets"><p class="empty">Add a Canvas export and a WeBWorK totals file to see the sets.</p></div>
+    <div class="opts">
+      <label><input type="checkbox" id="optOverwrite" checked> Overwrite scores already in the chosen column</label>
+      <label><input type="checkbox" id="optZero" checked> Enter 0 for students with no WeBWorK credit in a set</label>
+    </div>
+    <div id="issues"></div>
+    <details class="formula">
+      <summary>How the score is calculated</summary>
+      <p>For each set, the student's WeBWorK total is divided by the set's total value. With Percentage selected, that fraction is multiplied by 100. With Score selected, it is multiplied by the points possible of the chosen Canvas column. Both are rounded to two decimals. For example, 24.8 out of 27 in WeBWorK gives 91.85 as a percentage, or 24.80 as a score in a Canvas column worth 27 points. If the file has no set value, the WeBWorK %score column is used instead.</p>
+      <p>Students are matched by the SIS Login ID in Canvas and the login ID in WeBWorK. A student with no matching login is matched by full name only when exactly one WeBWorK student has that name. Canvas students with no WeBWorK record are left untouched.</p>
+      <p>When the zero option is off, a student whose WeBWorK total is 0 is left blank instead of receiving a 0.</p>
+    </details>
+  </section>
+
+  <section class="step">
+    <h2>Preview</h2>
+    <div id="preview"><p class="empty">Scores appear here once a set is matched to a column.</p></div>
+    <div class="legend" id="legend" hidden>
+      <span style="--sw:var(--bk-bg)">Different from the score now in Canvas</span>
+      <span style="--sw:var(--flag-bg)">Left blank or existing score kept</span>
+      <span style="--sw:var(--line)">No WeBWorK record, left untouched</span>
+    </div>
+  </section>
+
+  <section class="step">
+    <h2>Download</h2>
+    <p class="hint">The file keeps every row and column of your Canvas export, with only the chosen columns filled in. Import it through Canvas Gradebook, Import.</p>
+    <div class="actions">
+      <button class="primary" id="btnDownload" disabled>Download Canvas import file</button>
+      <span class="msg" id="dlMsg"></span>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ===== core logic (pure functions) ===== */
+function parseCSV(text){
+  if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
+  const rows=[]; let row=[], f='', q=false, i=0;
+  while(i<text.length){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){f+='"';i+=2;continue;} q=false;i++;continue; }
+      f+=c;i++;continue;
+    }
+    if(c==='"'){q=true;i++;continue;}
+    if(c===','){row.push(f);f='';i++;continue;}
+    if(c==='\r'){i++;continue;}
+    if(c==='\n'){row.push(f);rows.push(row);row=[];f='';i++;continue;}
+    f+=c;i++;
+  }
+  if(f!==''||row.length){row.push(f);rows.push(row);}
+  return rows;
+}
+function toCSV(rows){
+  return rows.map(r=>r.map(v=>{
+    v=v==null?'':String(v);
+    return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;
+  }).join(',')).join('\n')+'\n';
+}
+/* Words and numbers in a name; numbers lose leading zeros so 01 and 1 match, while 01A stays its own token */
+function tokens(s){
+  return String(s).replace(/\(\d{4,}\)\s*$/,'').normalize('NFD').toLowerCase().replace(/[\u0300-\u036f']/g,'')
+    .split(/[^a-z0-9]+/).filter(Boolean).map(t=>/^\d+$/.test(t)?String(+t):t);
+}
+function isNum(t){return /^\d+$/.test(t);}
+function nameKey(s){return tokens(s).filter(t=>t.length>1).sort().join(' ');}
+const ID_COLS=new Set(['student','lastname','firstname','last name','first name','id','sis user id','sis login id','integration id','root account','section']);
+
+function parseCanvas(rows){
+  const hdr=rows[0]||[];
+  const ix=n=>hdr.findIndex(h=>h.trim().toLowerCase()===n);
+  const iName=ix('student'), iLast=ix('lastname')>=0?ix('lastname'):ix('last name'), iFirst=ix('firstname')>=0?ix('firstname'):ix('first name');
+  const iLogin=ix('sis login id');
+  if(iLogin<0||(iName<0&&iLast<0)) throw new Error('This does not look like a Canvas gradebook export (no SIS Login ID or student name column).');
+  const pp=rows.findIndex(r=>(r[0]||'').trim().toLowerCase()==='points possible');
+  const start=pp>=0?pp+1:1;
+  const students=[];
+  for(let r=start;r<rows.length;r++){
+    const row=rows[r]; if(!row||row.length<2) continue;
+    let last,first;
+    if(iLast>=0){last=(row[iLast]||'').trim();first=iFirst>=0?(row[iFirst]||'').trim():'';}
+    else{[last,first]=(row[iName]||'').split(/,\s*/);first=first||'';}
+    if(!last&&!first) continue;
+    const name=first?last+', '+first:last;
+    students.push({row:r,name,login:(row[iLogin]||'').trim().toLowerCase(),key:nameKey(first+' '+last)});
+  }
+  const columns=[];
+  hdr.forEach((h,c)=>{
+    if(ID_COLS.has(h.trim().toLowerCase())) return;
+    const p=pp>=0?(rows[pp][c]||'').trim():'';
+    if(/read only/i.test(p)) return;
+    if(/(current|final) (score|points|grade)$/i.test(h)) return;
+    const t=tokens(h);
+    columns.push({index:c,header:h,points:p,tokens:t,nums:t.filter(isNum)});
+  });
+  return {rows,hdr,students,columns};
+}
+
+/* WeBWorK totals file: one "total" column per set, value in PROB VALUE, optional %score columns */
+function parseTotals(rows){
+  const find=n=>rows.findIndex(r=>(r[0]||'').trim().toUpperCase()===n);
+  const iSet=find('SET NAME'), iNum=find('PROB NUMBER'), iVal=find('PROB VALUE'), iHdr=find('STUDENT ID');
+  if(iSet<0||iHdr<0) throw new Error('This is not a WeBWorK scoring file (no SET NAME or STUDENT ID row).');
+  const hdr=rows[iHdr], setRow=rows[iSet], numRow=iNum>=0?rows[iNum]:[];
+  let iLogin=hdr.findIndex(h=>/^login/i.test(h.trim())); if(iLogin<0) iLogin=0;
+  const iLast=hdr.findIndex(h=>/^last name/i.test(h.trim())), iFirst=hdr.findIndex(h=>/^first name/i.test(h.trim()));
+  const sets=new Map();
+  hdr.forEach((h,c)=>{
+    const name=(setRow[c]||'').trim(); if(!name) return;
+    const kind=h.trim().toLowerCase(), pn=(numRow[c]||'').trim().toLowerCase();
+    if(kind==='total'){
+      const s=sets.get(name)||{name}; const v=iVal>=0?parseFloat(rows[iVal][c]):NaN;
+      s.col=c; s.value=isFinite(v)?v:NaN; sets.set(name,s);
+    } else if(pn==='%score'&&name.toLowerCase()!=='summary'&&name!=='%score'){
+      const s=sets.get(name)||{name}; s.pctCol=c; sets.set(name,s);
+    }
+  });
+  const list=[...sets.values()].filter(s=>s.col!=null||s.pctCol!=null);
+  if(!list.length) throw new Error('No set totals were found. Load the file ending in totals.csv, not a per set scr.csv file.');
+  const students=new Map(), byName=new Map();
+  for(let r=iHdr+1;r<rows.length;r++){
+    const row=rows[r]; if(!row||!(row[iLogin]||'').trim()) continue;
+    const login=row[iLogin].trim().toLowerCase();
+    const full=iFirst>=0&&iLast>=0?row[iFirst]+' '+row[iLast]:'';
+    const st={login,row,name:iLast>=0?row[iLast]+', '+(row[iFirst]||''):login};
+    students.set(login,st);
+    if(full){const k=nameKey(full); byName.set(k,byName.has(k)?null:st);}
+  }
+  list.forEach(s=>{s.tokens=tokens(s.name);s.nums=s.tokens.filter(isNum);s.label=s.name.replace(/_/g,' ');});
+  return {sets:list,students,byName};
+}
+
+/* Fraction of the set earned, or null when the cell is empty */
+function fraction(set,row){
+  if(set.col!=null&&set.value>0){
+    const cell=(row[set.col]||'').trim(); const v=parseFloat(cell);
+    return cell!==''&&isFinite(v)?v/set.value:null;
+  }
+  if(set.pctCol!=null){
+    const cell=(row[set.pctCol]||'').trim(); const v=parseFloat(cell);
+    return cell!==''&&isFinite(v)?v/100:null;
+  }
+  return null;
+}
+
+/* Higher is a better Canvas column for this set; -Infinity means the column does not contain the set's name */
+function columnScore(set,col){
+  if(!set.tokens.length||!set.tokens.every(t=>col.tokens.includes(t))) return -Infinity;
+  const h=col.tokens.join(' ');
+  let sc=10;
+  if(/web ?work/.test(h)) sc+=4;
+  if(/\b(hw|homework)\b/.test(h)) sc+=1;
+  if(/upload|written|rubric|writing|activit|quiz|practice/.test(h)) sc-=4;
+  sc-=col.nums.filter(n=>!set.nums.includes(n)).length;
+  if(set.value>0&&parseFloat(col.points)===set.value) sc+=2;
+  return sc;
+}
+
+function linkStudents(canvas,ww){
+  const map=new Map(), byName=[];
+  canvas.students.forEach(s=>{
+    let w=s.login&&ww.students.get(s.login);
+    if(!w&&s.key){w=ww.byName.get(s.key)||null; if(w) byName.push(s.name);}
+    if(w) map.set(s.row,w);
+  });
+  return {map,byName};
+}
+
+function computeSet(set,col,canvas,link,opts){
+  const pts=opts.mode==='pct'?100:parseFloat(col.points);
+  const results=new Map(); let filled=0, noWW=0, blank=0, kept=0, zeros=0, credit=0;
+  canvas.students.forEach(s=>{
+    const w=link.map.get(s.row);
+    if(!w){results.set(s.row,{state:'none'});noWW++;return;}
+    const frac=fraction(set,w.row);
+    const existing=((canvas.rows[s.row]||[])[col.index]||'').trim();
+    if(frac==null){results.set(s.row,{state:'blank',reason:'No total in the WeBWorK file, left blank'});blank++;return;}
+    if(frac>0) credit++;
+    if(frac===0&&!opts.zero){results.set(s.row,{state:'blank',reason:'WeBWorK total is 0 and the zero option is off, left blank'});blank++;return;}
+    const score=Math.round(frac*pts*100)/100;
+    if(!opts.overwrite&&existing!==''){results.set(s.row,{state:'kept',score,existing,reason:'Canvas already has '+existing+', kept'});kept++;return;}
+    const ex=parseFloat(existing);
+    results.set(s.row,{state:'ok',score,existing,changed:!(existing!==''&&isFinite(ex)&&Math.abs(ex-score)<0.005)});
+    filled++; if(score===0) zeros++;
+  });
+  return {results,filled,noWW,blank,kept,zeros,credit};
+}
+
+function buildOutput(canvas,assignments){
+  const rows=canvas.rows.map(r=>r.slice());
+  assignments.forEach(a=>{
+    a.calc.results.forEach((res,rowIdx)=>{
+      if(res.state!=='ok') return;
+      const row=rows[rowIdx];
+      while(row.length<=a.col.index) row.push('');
+      row[a.col.index]=res.score===0?'0':res.score.toFixed(2);
+    });
+  });
+  return toCSV(rows);
+}
+/* ===== end core logic ===== */
+
+/* ===== UI ===== */
+const state={canvas:null,canvasName:'',ww:null,wwName:'',choice:{}};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function load(k){try{return JSON.parse(localStorage.getItem(k)||'null');}catch(e){return null;}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+const remembered=load('wwtotals.choices')||{};
+async function readFile(f){
+  const buf=await f.arrayBuffer();
+  try{ return new TextDecoder('utf-8',{fatal:true}).decode(buf); }
+  catch(e){ return new TextDecoder('windows-1252').decode(buf); }
+}
+function tidy(h){
+  return String(h).replace(/â€“/g,'–').replace(/â€”/g,'—').replace(/â€™/g,'’').replace(/â€œ|â€\u009d|â€/g,'"').replace(/Ã©/g,'é').replace(/Ã±/g,'ñ');
+}
+function wireDrop(dropId,inputId,handler){
+  const d=$(dropId), inp=$(inputId);
+  ['dragenter','dragover'].forEach(e=>d.addEventListener(e,ev=>{ev.preventDefault();d.classList.add('hover');}));
+  ['dragleave','drop'].forEach(e=>d.addEventListener(e,()=>d.classList.remove('hover')));
+  d.addEventListener('drop',ev=>{ev.preventDefault();handler([...ev.dataTransfer.files]);});
+  inp.addEventListener('change',()=>{handler([...inp.files]);inp.value='';});
+}
+function setStatus(id,text,err){const el=$(id);el.textContent=text;el.classList.toggle('err',!!err);el.closest('.drop').classList.toggle('done',!err&&!!text);}
+function detectType(rows){
+  const h0=(rows[0]||[]).map(x=>x.trim().toLowerCase());
+  if(h0.includes('sis login id')&&(h0.includes('student')||h0.includes('lastname')||h0.includes('last name'))) return 'canvas';
+  if(rows.some(r=>(r[0]||'').trim().toUpperCase()==='SET NAME')) return 'webwork';
+  return null;
+}
+function refreshStatus(){
+  setStatus('stCanvas',state.canvas?state.canvasName+', '+state.canvas.students.length+' students':'');
+  setStatus('stWW',state.ww?state.wwName+', '+state.ww.sets.length+' sets, '+state.ww.students.size+' students':'');
+}
+async function ingest(files,boxId){
+  const errs=[], moved=[];
+  const boxType={stCanvas:'canvas',stWW:'webwork'}[boxId];
+  for(const f of files.slice(0,2)){
+    try{
+      const rows=parseCSV(await readFile(f)); const t=detectType(rows);
+      if(!t) throw new Error(f.name+' was not recognized as a Canvas gradebook export or a WeBWorK totals file.');
+      if(t!==boxType) moved.push(f.name);
+      if(t==='canvas'){state.canvas=parseCanvas(rows);state.canvasName=f.name;state.choice={};}
+      else{state.ww=parseTotals(rows);state.wwName=f.name;state.choice={};}
+    }catch(e){errs.push(e.message);}
+  }
+  refreshStatus();
+  if(errs.length||moved.length){
+    const el=$(boxId); el.textContent=[...errs,...(moved.length?['Sorted into the other box automatically: '+moved.join('; ')]:[])].join(' ');
+    el.classList.toggle('err',!!errs.length);
+  }
+  render();
+}
+wireDrop('dropCanvas','inCanvas',f=>ingest(f,'stCanvas'));
+wireDrop('dropWW','inWW',f=>ingest(f,'stWW'));
+$('optOverwrite').addEventListener('change',render);
+$('optZero').addEventListener('change',render);
+const savedMode=load('wwtotals.mode');
+if(savedMode){const r=document.querySelector(`input[name=mode][value="${savedMode}"]`); if(r) r.checked=true;}
+document.querySelectorAll('input[name=mode]').forEach(r=>r.addEventListener('change',()=>{save('wwtotals.mode',r.value);render();}));
+
+function rankedColumns(set){
+  return state.canvas.columns.map(c=>({c,sc:columnScore(set,c)})).filter(x=>x.sc>-Infinity).sort((a,b)=>b.sc-a.sc);
+}
+function defaultColumn(set,link){
+  const rem=remembered[set.name];
+  if(rem!==undefined){ if(rem==='') return -1; const c=state.canvas.columns.find(c=>c.header===rem); if(c) return c.index; }
+  const anyCredit=[...link.map.values()].some(w=>(fraction(set,w.row)||0)>0);
+  if(!anyCredit) return -1;
+  const r=rankedColumns(set);
+  return r.length&&r[0].sc>=10?r[0].c.index:-1;
+}
+
+function render(){
+  const opts={overwrite:$('optOverwrite').checked,zero:$('optZero').checked,mode:document.querySelector('input[name=mode]:checked').value};
+  if(!state.canvas||!state.ww){
+    $('sets').innerHTML='<p class="empty">Add a Canvas export and a WeBWorK totals file to see the sets.</p>';
+    $('preview').innerHTML='<p class="empty">Scores appear here once a set is matched to a column.</p>';
+    $('legend').hidden=true; $('issues').innerHTML=''; $('btnDownload').disabled=true; return;
+  }
+  const link=linkStudents(state.canvas,state.ww);
+  const assignments=[], issues=[], used={};
+  let html='<div class="tablewrap"><table><thead><tr><th>WeBWorK set</th><th>Set value</th><th>Canvas column (output)</th><th>Result</th></tr></thead><tbody>';
+  state.ww.sets.forEach(set=>{
+    const ck='col:'+set.name;
+    if(state.choice[ck]===undefined) state.choice[ck]=defaultColumn(set,link);
+    const colObj=state.canvas.columns.find(c=>c.index===state.choice[ck])||null;
+    let calc=null;
+    if(colObj){
+      const pts=parseFloat(colObj.points);
+      if(opts.mode==='pts'&&!(pts>0)) issues.push(`${esc(set.label)}: the chosen column ${esc(tidy(colObj.header))} has no points possible in Canvas, so nothing can be written to it`);
+      else{
+        calc=computeSet(set,colObj,state.canvas,link,opts);
+        assignments.push({set,col:colObj,calc}); used[colObj.index]=(used[colObj.index]||0)+1;
+        if(opts.mode==='pts'&&set.value>0&&pts!==set.value) issues.push(`${esc(set.label)}: worth ${set.value} in WeBWorK and ${esc(colObj.points)} in Canvas, so scores are scaled to ${esc(colObj.points)} points`);
+        if(opts.mode==='pct'&&pts>0&&pts!==100) issues.push(`${esc(set.label)}: the chosen column is worth ${esc(colObj.points)} points in Canvas, but a percentage out of 100 will be written. Choose Score if Canvas should show points out of ${esc(colObj.points)}.`);
+        if(!calc.credit&&calc.filled) issues.push(`${esc(set.label)}: none of your students has WeBWorK credit yet${opts.zero?', so every matched student would receive 0':''}`);
+      }
+    }
+    const ranked=rankedColumns(set).map(x=>x.c);
+    const o=c=>`<option value="${c.index}"${colObj&&c.index===colObj.index?' selected':''}>${esc(tidy(c.header))}${c.points?' ('+esc(c.points)+' pts)':''}</option>`;
+    const colOpts='<option value="-1">Do not fill</option>'
+      +(ranked.length?`<optgroup label="Columns named like ${esc(set.label)}">${ranked.map(o).join('')}</optgroup>`:'')
+      +`<optgroup label="Other grade columns">${state.canvas.columns.filter(c=>!ranked.includes(c)).map(o).join('')}</optgroup>`;
+    let res='';
+    if(!colObj) res='<span class="pill">Not filled</span>';
+    else if(calc){
+      res=`<span class="pill ok">${calc.filled} students</span>`;
+      if(calc.zeros) res+=` <span class="pill">${calc.zeros} zero${calc.zeros===1?'':'s'}</span>`;
+      if(calc.blank) res+=` <span class="pill flag">${calc.blank} left blank</span>`;
+      if(calc.kept) res+=` <span class="pill flag">${calc.kept} existing kept</span>`;
+    }
+    html+=`<tr><td><strong>${esc(set.label)}</strong></td>
+      <td>${set.value>0?set.value:(set.pctCol!=null?'%score':'none')}</td>
+      <td><select data-col="${esc(set.name)}" aria-label="Canvas column for ${esc(set.label)}">${colOpts}</select></td>
+      <td>${res}</td></tr>`;
+  });
+  html+='</tbody></table></div>';
+  $('sets').innerHTML=html;
+
+  Object.entries(used).forEach(([c,n])=>{if(n>1) issues.unshift(`Two or more sets are pointed at the same column: ${esc(tidy(state.canvas.hdr[c]))}. Choose a different column for one of them.`);});
+  const conflict=Object.values(used).some(n=>n>1);
+  const missing=state.canvas.students.filter(s=>!link.map.has(s.row)&&!/^student,\s*test$/i.test(s.name));
+  if(missing.length) issues.push(`No WeBWorK record for ${missing.length} Canvas student${missing.length===1?'':'s'}, left untouched: ${missing.map(s=>esc(s.name)).join('; ')}`);
+  if(link.byName.length) issues.push(`Matched by name because the login IDs differ, please confirm: ${link.byName.map(esc).join('; ')}`);
+  $('issues').innerHTML=issues.length?`<div class="issues"><strong>Check before importing</strong><ul>${issues.map(i=>'<li>'+i+'</li>').join('')}</ul></div>`:'';
+
+  document.querySelectorAll('select[data-col]').forEach(s=>s.addEventListener('change',()=>{
+    const k=s.dataset.col; state.choice['col:'+k]=+s.value;
+    const c=state.canvas.columns.find(c=>c.index===+s.value);
+    remembered[k]=c?c.header:''; save('wwtotals.choices',remembered); render();
+  }));
+
+  if(!assignments.length){
+    $('preview').innerHTML='<p class="empty">Scores appear here once a set is matched to a column.</p>';
+    $('legend').hidden=true;
+  }else{
+    let p='<div class="tablewrap preview"><table><thead><tr><th>Student</th>'+assignments.map(a=>`<th class="set">${esc(a.set.label)}<div style="font-weight:400">${opts.mode==='pct'?'percent':'out of '+esc(a.col.points)}</div></th>`).join('')+'</tr></thead><tbody>';
+    state.canvas.students.forEach(s=>{
+      p+=`<tr><td class="name">${esc(s.name)}</td>`;
+      assignments.forEach(a=>{
+        const r=a.calc.results.get(s.row)||{state:'none'};
+        if(r.state==='none') p+='<td class="none">·</td>';
+        else if(r.state==='blank') p+=`<td class="none flag" title="${esc(r.reason)}">blank</td>`;
+        else if(r.state==='kept') p+=`<td class="num flag" title="${esc(r.reason)}">${esc(r.existing)}</td>`;
+        else p+=`<td class="num${r.changed?' bk':''}${r.score===0?' zero':''}"${r.changed?` title="Canvas now has ${esc(r.existing||'nothing')}"`:''}>${r.score===0?'0':r.score.toFixed(2)}</td>`;
+      });
+      p+='</tr>';
+    });
+    p+='</tbody></table></div>';
+    $('preview').innerHTML=p; $('legend').hidden=false;
+  }
+  state.assignments=assignments;
+  const nothing=!assignments.some(a=>a.calc.filled);
+  $('btnDownload').disabled=!assignments.length||conflict||nothing;
+  $('dlMsg').textContent=conflict?'Fix the duplicate column choice to enable the download.':'';
+  $('dlMsg').className='msg'+(conflict?' err':'');
+}
+
+let downloadsP=null;
+try{ if(window.claude&&window.claude.use) downloadsP=window.claude.use('downloads'); }catch(e){}
+
+$('btnDownload').addEventListener('click',async()=>{
+  const csv=buildOutput(state.canvas,state.assignments);
+  const name=state.canvasName.replace(/\.csv$/i,'')+'_filled.csv';
+  const msg=$('dlMsg');
+  let dl=null; try{dl=downloadsP?await downloadsP:null;}catch(e){}
+  if(dl){
+    try{await dl.save({filename:name,data:csv}); msg.textContent='Saved '+name+'.'; msg.className='msg good';}
+    catch(e){
+      msg.className='msg'+(e&&e.code==='declined'?'':' err');
+      msg.textContent=e&&e.code==='declined'?'Download cancelled.':'The download could not be completed ('+(e&&e.code||'error')+').';
+    }
+    return;
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  msg.textContent='Downloaded '+name+'.'; msg.className='msg good';
+});
+</script>
+</body>
+</html>
