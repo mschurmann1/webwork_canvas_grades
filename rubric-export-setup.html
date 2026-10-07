@@ -110,7 +110,7 @@ pre{margin:0;max-height:260px;overflow:auto;background:var(--bg);border:1px soli
 // @match        https://*/courses/*/gradebook/speed_grader*
 // @grant        none
 // @run-at       document-idle
-// @version      1.0.0
+// @version      1.1.0
 // ==/UserScript==
 
 (function() {
@@ -123,6 +123,8 @@ pre{margin:0;max-height:260px;overflow:auto;background:var(--bg);border:1px soli
         if (fromSelect &amp;&amp; fromSelect.value) return fromSelect.value;
         var m = window.location.search.match(/student_id=([0-9]+)/);
         if (m) return m[1];
+        var h = decodeURIComponent(window.location.hash || &#x27;&#x27;).match(/student_id&quot;?\s*[:=]\s*&quot;?([0-9]+)/);
+        if (h) return h[1];
         return null;
     }
 
@@ -168,19 +170,47 @@ pre{margin:0;max-height:260px;overflow:auto;background:var(--bg);border:1px soli
         try { if (typeof $ !== &#x27;undefined&#x27;) $(dialog).dialog(&#x27;close&#x27;); } catch(e) {}
     }
 
+    // ---- Short message that fades on its own, so grading is not interrupted ----
+    function toast(text) {
+        var t = document.createElement(&#x27;div&#x27;);
+        t.textContent = text;
+        t.style.cssText = &#x27;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:2147483647;background:#1D6B45;color:#fff;padding:8px 16px;border-radius:6px;font:14px sans-serif;box-shadow:0 2px 6px rgba(0,0,0,0.25);transition:opacity .4s;&#x27;;
+        document.body.appendChild(t);
+        setTimeout(function() { t.style.opacity = &#x27;0&#x27;; }, 1600);
+        setTimeout(function() { t.remove(); }, 2100);
+    }
+
+    // ---- Move SpeedGrader to the next student; reload only if no Next button can be found ----
+    function goToNextStudent() {
+        var btn = document.querySelector(&#x27;#next-student-button, [data-testid=&quot;next-student-button&quot;]&#x27;);
+        if (!btn) {
+            btn = Array.prototype.find.call(document.querySelectorAll(&#x27;button, a&#x27;), function(b) {
+                return /next student/i.test((b.getAttribute(&#x27;aria-label&#x27;) || &#x27;&#x27;) + &#x27; &#x27; + (b.getAttribute(&#x27;title&#x27;) || &#x27;&#x27;));
+            });
+        }
+        if (btn &amp;&amp; !btn.disabled &amp;&amp; btn.getAttribute(&#x27;aria-disabled&#x27;) !== &#x27;true&#x27;) {
+            btn.click();
+        } else {
+            window.location.reload();
+        }
+    }
+
     // ---- Apply a rubric assessment picking either max or min points per criterion ----
+    var busy = false;
     function applyCredit(mode) {
+        if (busy) return;
+        busy = true;
         showMsg(mode === &#x27;full&#x27; ? &#x27;Applying full credit, please wait...&#x27; : &#x27;Applying zero credit, please wait...&#x27;);
         var courseId = window.location.pathname.split(&#x27;/&#x27;)[2];
         var assignId = new URLSearchParams(window.location.search).get(&#x27;assignment_id&#x27;);
         var studentId = getStudentId();
-        if (!studentId) { showMsg(&#x27;ERROR: Could not find student ID.&#x27;); return; }
+        if (!studentId) { showMsg(&#x27;ERROR: Could not find student ID.&#x27;); busy = false; return; }
 
         fetch(&#x27;/api/v1/courses/&#x27; + courseId + &#x27;/assignments/&#x27; + assignId)
             .then(function(r) { return r.json(); })
             .then(function(assignment) {
                 if (!assignment.rubric || !assignment.rubric.length) {
-                    showMsg(&#x27;ERROR: No rubric found for this assignment.&#x27;); return;
+                    showMsg(&#x27;ERROR: No rubric found for this assignment.&#x27;); return null;
                 }
                 var params = new URLSearchParams();
                 params.append(&#x27;rubric_assessment[assessment_type]&#x27;, &#x27;grading&#x27;);
@@ -206,15 +236,17 @@ pre{margin:0;max-height:260px;overflow:auto;background:var(--bg);border:1px soli
                 });
             })
             .then(function(r) {
-                if (!r || !r.ok) {
-                    showMsg(&#x27;ERROR: API call failed with status &#x27; + (r ? r.status : &#x27;unknown&#x27;));
+                if (!r) { busy = false; return; }
+                if (!r.ok) {
+                    showMsg(&#x27;ERROR: API call failed with status &#x27; + r.status);
+                    busy = false;
                     return;
                 }
                 closeMsg();
-                alert((mode === &#x27;full&#x27; ? &#x27;Full credit&#x27; : &#x27;Zero credit&#x27;) + &#x27; applied! Reloading...&#x27;);
-                window.location.reload();
+                toast((mode === &#x27;full&#x27; ? &#x27;Full credit&#x27; : &#x27;Zero credit&#x27;) + &#x27; saved. Moving to the next student.&#x27;);
+                setTimeout(function() { busy = false; goToNextStudent(); }, 300);
             })
-            .catch(function(err) { showMsg(&#x27;ERROR: &#x27; + err.message); });
+            .catch(function(err) { showMsg(&#x27;ERROR: &#x27; + err.message); busy = false; });
     }
 
     // ---- Export rubric scores to CSV ----
