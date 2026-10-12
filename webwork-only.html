@@ -76,6 +76,10 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .actions{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
 button.primary{font:inherit;font-weight:600;padding:11px 20px;border-radius:8px;border:0;background:var(--orange);color:#fff;cursor:pointer}
 button.primary:disabled{opacity:.45;cursor:not-allowed}
+button.reset{font:inherit;font-weight:600;font-size:.88rem;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--navy);cursor:pointer}
+button.reset:hover{border-color:var(--orange);color:var(--orange)}
+.stephead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.stephead h2{margin:0}
 .msg{font-size:.9rem;color:var(--muted)}
 .msg.err{color:var(--bad)}
 .msg.good{color:var(--ok)}
@@ -118,7 +122,10 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
   <p class="lede">Load one Canvas gradebook export and one WeBWorK totals file. Choose whether each WeBWorK set total is written as a percentage out of 100 or as a score out of the Canvas column's points possible, then pick the column to fill. Files are read in your browser and never uploaded anywhere.</p>
 
   <section class="step">
-    <h2>Add your files</h2>
+    <div class="stephead">
+      <h2>Add your files</h2>
+      <button class="reset" type="button" data-reset>Clear page for another section</button>
+    </div>
     <div class="howto">
       <details>
         <summary>How to get the Canvas gradebook export</summary>
@@ -129,6 +136,7 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
             <li>Choose <span class="ui">Export Entire Gradebook</span>. The .csv file downloads to your computer.</li>
           </ol>
           <p class="note">Make sure the WeBWorK homework assignments you want filled already exist in Canvas so their columns appear in the export. Exports with a single Student column and exports with separate LastName and FirstName columns both work.</p>
+          <p class="note">Students excused in Canvas, such as tutors, appear as <strong>EX</strong> in the export. Those cells are always kept as EX and never filled with a WeBWorK score, so there is no need to edit the file.</p>
         </div>
       </details>
       <details>
@@ -178,7 +186,7 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
     <details class="formula">
       <summary>How the score is calculated</summary>
       <p>For each set, the student's WeBWorK total is divided by the set's total value. With Percentage selected, that fraction is multiplied by 100. With Score selected, it is multiplied by the points possible of the chosen Canvas column. Both are rounded to two decimals. For example, 24.8 out of 27 in WeBWorK gives 91.85 as a percentage, or 24.80 as a score in a Canvas column worth 27 points. If the file has no set value, the WeBWorK %score column is used instead.</p>
-      <p>Students are matched by the SIS Login ID in Canvas and the login ID in WeBWorK. A student with no matching login is matched by full name only when exactly one WeBWorK student has that name. Canvas students with no WeBWorK record are left untouched.</p>
+      <p>Students are matched by the SIS Login ID in Canvas and the login ID in WeBWorK. A student with no matching login is matched by full name only when exactly one WeBWorK student has that name. Canvas students with no WeBWorK record are left untouched, and any cell already marked EX in Canvas stays EX.</p>
       <p>When the zero option is off, a student whose WeBWorK total is 0 is left blank instead of receiving a 0.</p>
     </details>
   </section>
@@ -188,7 +196,7 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
     <div id="preview"><p class="empty">Scores appear here once a set is matched to a column.</p></div>
     <div class="legend" id="legend" hidden>
       <span style="--sw:var(--bk-bg)">Different from the score now in Canvas</span>
-      <span style="--sw:var(--flag-bg)">Left blank or existing score kept</span>
+      <span style="--sw:var(--flag-bg)">Left blank, excused (EX), or existing score kept</span>
       <span style="--sw:var(--line)">No WeBWorK record, left untouched</span>
     </div>
   </section>
@@ -198,8 +206,10 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
     <p class="hint">The file keeps every row and column of your Canvas export, with only the chosen columns filled in. Import it through Canvas Gradebook, Import.</p>
     <div class="actions">
       <button class="primary" id="btnDownload" disabled>Download Canvas import file</button>
+      <button class="reset" type="button" data-reset>Clear page for another section</button>
       <span class="msg" id="dlMsg"></span>
     </div>
+    <p class="hint" style="margin-top:12px">Clearing removes both files, the preview, and any messages. Your Percentage or Score choice, the two options, and your column choices are kept for the next section.</p>
   </section>
 </main>
 
@@ -317,9 +327,13 @@ function fraction(set,row){
 
 /* Higher is a better Canvas column for this set; -Infinity means the column does not contain the set's name */
 function columnScore(set,col){
-  if(!set.tokens.length||!set.tokens.every(t=>col.tokens.includes(t))) return -Infinity;
+  if(!set.tokens.length) return -Infinity;
+  const words=set.tokens.filter(t=>!isNum(t)), hitWords=words.filter(t=>col.tokens.includes(t)).length;
+  if(set.nums.length){
+    if(!set.nums.every(n=>col.nums.includes(n))||(words.length&&!hitWords)) return -Infinity;
+  } else if(hitWords<words.length) return -Infinity;
   const h=col.tokens.join(' ');
-  let sc=10;
+  let sc=10-(words.length-hitWords);
   if(/web ?work/.test(h)) sc+=4;
   if(/\b(hw|homework)\b/.test(h)) sc+=1;
   if(/upload|written|rubric|writing|activit|quiz|practice/.test(h)) sc-=4;
@@ -340,12 +354,13 @@ function linkStudents(canvas,ww){
 
 function computeSet(set,col,canvas,link,opts){
   const pts=opts.mode==='pct'?100:parseFloat(col.points);
-  const results=new Map(); let filled=0, noWW=0, blank=0, kept=0, zeros=0, credit=0;
+  const results=new Map(); let filled=0, noWW=0, blank=0, kept=0, zeros=0, credit=0, excused=0;
   canvas.students.forEach(s=>{
+    const existing=((canvas.rows[s.row]||[])[col.index]||'').trim();
+    if(/^ex$/i.test(existing)){results.set(s.row,{state:'excused'});excused++;return;}
     const w=link.map.get(s.row);
     if(!w){results.set(s.row,{state:'none'});noWW++;return;}
     const frac=fraction(set,w.row);
-    const existing=((canvas.rows[s.row]||[])[col.index]||'').trim();
     if(frac==null){results.set(s.row,{state:'blank',reason:'No total in the WeBWorK file, left blank'});blank++;return;}
     if(frac>0) credit++;
     if(frac===0&&!opts.zero){results.set(s.row,{state:'blank',reason:'WeBWorK total is 0 and the zero option is off, left blank'});blank++;return;}
@@ -355,7 +370,7 @@ function computeSet(set,col,canvas,link,opts){
     results.set(s.row,{state:'ok',score,existing,changed:!(existing!==''&&isFinite(ex)&&Math.abs(ex-score)<0.005)});
     filled++; if(score===0) zeros++;
   });
-  return {results,filled,noWW,blank,kept,zeros,credit};
+  return {results,filled,noWW,blank,kept,zeros,credit,excused};
 }
 
 function buildOutput(canvas,assignments){
@@ -426,6 +441,15 @@ async function ingest(files,boxId){
 }
 wireDrop('dropCanvas','inCanvas',f=>ingest(f,'stCanvas'));
 wireDrop('dropWW','inWW',f=>ingest(f,'stWW'));
+function resetPage(){
+  state.canvas=null; state.canvasName=''; state.ww=null; state.wwName=''; state.choice={}; state.assignments=[];
+  ['stCanvas','stWW'].forEach(id=>{const el=$(id); el.textContent=''; el.classList.remove('err'); el.closest('.drop').classList.remove('done','hover');});
+  $('inCanvas').value=''; $('inWW').value='';
+  $('dlMsg').textContent=''; $('dlMsg').className='msg';
+  render();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+document.querySelectorAll('[data-reset]').forEach(b=>b.addEventListener('click',resetPage));
 $('optOverwrite').addEventListener('change',render);
 $('optZero').addEventListener('change',render);
 const savedMode=load('wwtotals.mode');
@@ -441,7 +465,7 @@ function defaultColumn(set,link){
   const anyCredit=[...link.map.values()].some(w=>(fraction(set,w.row)||0)>0);
   if(!anyCredit) return -1;
   const r=rankedColumns(set);
-  return r.length&&r[0].sc>=10?r[0].c.index:-1;
+  return r.length&&r[0].sc>=8?r[0].c.index:-1;
 }
 
 function render(){
@@ -482,6 +506,7 @@ function render(){
       if(calc.zeros) res+=` <span class="pill">${calc.zeros} zero${calc.zeros===1?'':'s'}</span>`;
       if(calc.blank) res+=` <span class="pill flag">${calc.blank} left blank</span>`;
       if(calc.kept) res+=` <span class="pill flag">${calc.kept} existing kept</span>`;
+      if(calc.excused) res+=` <span class="pill flag">${calc.excused} excused</span>`;
     }
     html+=`<tr><td><strong>${esc(set.label)}</strong></td>
       <td>${set.value>0?set.value:(set.pctCol!=null?'%score':'none')}</td>
@@ -514,6 +539,7 @@ function render(){
       assignments.forEach(a=>{
         const r=a.calc.results.get(s.row)||{state:'none'};
         if(r.state==='none') p+='<td class="none">·</td>';
+        else if(r.state==='excused') p+='<td class="none flag" title="Excused in Canvas, EX is kept">EX</td>';
         else if(r.state==='blank') p+=`<td class="none flag" title="${esc(r.reason)}">blank</td>`;
         else if(r.state==='kept') p+=`<td class="num flag" title="${esc(r.reason)}">${esc(r.existing)}</td>`;
         else p+=`<td class="num${r.changed?' bk':''}${r.score===0?' zero':''}"${r.changed?` title="Canvas now has ${esc(r.existing||'nothing')}"`:''}>${r.score===0?'0':r.score.toFixed(2)}</td>`;
