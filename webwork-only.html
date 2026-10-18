@@ -80,6 +80,10 @@ button.reset{font:inherit;font-weight:600;font-size:.88rem;padding:8px 14px;bord
 button.reset:hover{border-color:var(--orange);color:var(--orange)}
 .stephead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 .stephead h2{margin:0}
+.resets{display:flex;flex-wrap:wrap;gap:8px}
+.drop.next{border-style:solid;border-color:var(--orange);background:var(--orange-soft)}
+.drop.next .status{color:var(--orange);font-weight:600}
+.status .kept{color:var(--muted);font-weight:400}
 .msg{font-size:.9rem;color:var(--muted)}
 .msg.err{color:var(--bad)}
 .msg.good{color:var(--ok)}
@@ -124,7 +128,10 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
   <section class="step">
     <div class="stephead">
       <h2>Add your files</h2>
-      <button class="reset" type="button" data-reset>Clear page for another section</button>
+      <div class="resets">
+      <button class="reset" type="button" data-next>Next section (keep WeBWorK file)</button>
+      <button class="reset" type="button" data-reset>Clear everything</button>
+      </div>
     </div>
     <div class="howto">
       <details>
@@ -206,10 +213,11 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
     <p class="hint">The file keeps every row and column of your Canvas export, with only the chosen columns filled in. Import it through Canvas Gradebook, Import.</p>
     <div class="actions">
       <button class="primary" id="btnDownload" disabled>Download Canvas import file</button>
-      <button class="reset" type="button" data-reset>Clear page for another section</button>
+      <button class="reset" type="button" data-next>Next section (keep WeBWorK file)</button>
+      <button class="reset" type="button" data-reset>Clear everything</button>
       <span class="msg" id="dlMsg"></span>
     </div>
-    <p class="hint" style="margin-top:12px">Clearing removes both files, the preview, and any messages. Your Percentage or Score choice, the two options, and your column choices are kept for the next section.</p>
+    <p class="hint" style="margin-top:12px"><strong>Next section</strong> clears the Canvas export and the preview but keeps the WeBWorK totals file loaded, so only the next section's Canvas export is needed. <strong>Clear everything</strong> removes both files. Either way, your Percentage or Score choice, the two options, and your column choices are kept.</p>
   </section>
 </main>
 
@@ -417,8 +425,12 @@ function detectType(rows){
   return null;
 }
 function refreshStatus(){
-  setStatus('stCanvas',state.canvas?state.canvasName+', '+state.canvas.students.length+' students':'');
+  const dc=$('dropCanvas');
+  if(state.canvas){ dc.classList.remove('next'); setStatus('stCanvas',state.canvasName+', '+state.canvas.students.length+' students'); }
+  else if(state.awaitingNext){ setStatus('stCanvas',''); dc.classList.add('next'); $('stCanvas').textContent="Add the next section's Canvas export"; }
+  else { dc.classList.remove('next'); setStatus('stCanvas',''); }
   setStatus('stWW',state.ww?state.wwName+', '+state.ww.sets.length+' sets, '+state.ww.students.size+' students':'');
+  if(state.ww&&state.wwKept){ const k=document.createElement('span'); k.className='kept'; k.textContent=' (kept from the last section)'; $('stWW').appendChild(k); }
 }
 async function ingest(files,boxId){
   const errs=[], moved=[];
@@ -428,8 +440,8 @@ async function ingest(files,boxId){
       const rows=parseCSV(await readFile(f)); const t=detectType(rows);
       if(!t) throw new Error(f.name+' was not recognized as a Canvas gradebook export or a WeBWorK totals file.');
       if(t!==boxType) moved.push(f.name);
-      if(t==='canvas'){state.canvas=parseCanvas(rows);state.canvasName=f.name;state.choice={};}
-      else{state.ww=parseTotals(rows);state.wwName=f.name;state.choice={};}
+      if(t==='canvas'){state.canvas=parseCanvas(rows);state.canvasName=f.name;state.choice={};state.awaitingNext=false;}
+      else{state.ww=parseTotals(rows);state.wwName=f.name;state.choice={};state.wwKept=false;}
     }catch(e){errs.push(e.message);}
   }
   refreshStatus();
@@ -441,15 +453,19 @@ async function ingest(files,boxId){
 }
 wireDrop('dropCanvas','inCanvas',f=>ingest(f,'stCanvas'));
 wireDrop('dropWW','inWW',f=>ingest(f,'stWW'));
-function resetPage(){
-  state.canvas=null; state.canvasName=''; state.ww=null; state.wwName=''; state.choice={}; state.assignments=[];
-  ['stCanvas','stWW'].forEach(id=>{const el=$(id); el.textContent=''; el.classList.remove('err'); el.closest('.drop').classList.remove('done','hover');});
+function clearPage(keepWW){
+  const keep=keepWW&&!!state.ww;
+  state.canvas=null; state.canvasName=''; state.choice={}; state.assignments=[];
+  if(!keep){ state.ww=null; state.wwName=''; }
+  state.wwKept=keep; state.awaitingNext=keep;
+  ['stCanvas','stWW'].forEach(id=>{const el=$(id); el.textContent=''; el.classList.remove('err'); el.closest('.drop').classList.remove('done','hover','next');});
   $('inCanvas').value=''; $('inWW').value='';
   $('dlMsg').textContent=''; $('dlMsg').className='msg';
-  render();
-  window.scrollTo({top:0,behavior:'smooth'});
+  refreshStatus(); render();
+  document.querySelector('.drops').scrollIntoView({behavior:'smooth',block:'center'});
 }
-document.querySelectorAll('[data-reset]').forEach(b=>b.addEventListener('click',resetPage));
+document.querySelectorAll('[data-reset]').forEach(b=>b.addEventListener('click',()=>clearPage(false)));
+document.querySelectorAll('[data-next]').forEach(b=>b.addEventListener('click',()=>clearPage(true)));
 $('optOverwrite').addEventListener('change',render);
 $('optZero').addEventListener('change',render);
 const savedMode=load('wwtotals.mode');
@@ -471,7 +487,7 @@ function defaultColumn(set,link){
 function render(){
   const opts={overwrite:$('optOverwrite').checked,zero:$('optZero').checked,mode:document.querySelector('input[name=mode]:checked').value};
   if(!state.canvas||!state.ww){
-    $('sets').innerHTML='<p class="empty">Add a Canvas export and a WeBWorK totals file to see the sets.</p>';
+    $('sets').innerHTML='<p class="empty">'+(state.ww&&!state.canvas?"Add the next section's Canvas export to see the sets.":'Add a Canvas export and a WeBWorK totals file to see the sets.')+'</p>';
     $('preview').innerHTML='<p class="empty">Scores appear here once a set is matched to a column.</p>';
     $('legend').hidden=true; $('issues').innerHTML=''; $('btnDownload').disabled=true; return;
   }
