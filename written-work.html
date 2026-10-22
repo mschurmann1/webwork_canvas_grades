@@ -76,6 +76,14 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .actions{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
 button.primary{font:inherit;font-weight:600;padding:11px 20px;border-radius:8px;border:0;background:var(--orange);color:#fff;cursor:pointer}
 button.primary:disabled{opacity:.45;cursor:not-allowed}
+button.reset{font:inherit;font-weight:600;font-size:.88rem;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--navy);cursor:pointer}
+button.reset:hover{border-color:var(--orange);color:var(--orange)}
+.stephead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.stephead h2{margin:0}
+.resets{display:flex;flex-wrap:wrap;gap:8px}
+.drop.next{border-style:solid;border-color:var(--orange);background:var(--orange-soft)}
+.drop.next .status{color:var(--orange);font-weight:600}
+.status .kept{color:var(--muted);font-weight:400}
 .msg{font-size:.9rem;color:var(--muted)}
 .msg.err{color:var(--bad)}
 .msg.good{color:var(--ok)}
@@ -105,6 +113,7 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
 .crumb{margin:0 0 10px;font-size:.88rem}
 .crumb a{color:var(--orange);font-weight:600;text-decoration:none}
 .crumb a:hover{text-decoration:underline}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -118,7 +127,13 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
   </div>
 
   <section class="step">
-    <h2>Add your files</h2>
+    <div class="stephead">
+      <h2>Add your files</h2>
+      <div class="resets">
+      <button class="reset" type="button" data-next>Next section (keep WeBWorK files)</button>
+      <button class="reset" type="button" data-reset>Clear everything</button>
+      </div>
+    </div>
     <div class="howto">
       <details>
         <summary>How to get the Canvas gradebook export</summary>
@@ -210,8 +225,11 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
     <p class="hint">The file keeps every row and column of your Canvas export, with only the chosen columns filled in. Import it through Canvas Gradebook, Import.</p>
     <div class="actions">
       <button class="primary" id="btnDownload" disabled>Download Canvas import file</button>
+      <button class="reset" type="button" data-next>Next section (keep WeBWorK files)</button>
+      <button class="reset" type="button" data-reset>Clear everything</button>
       <span class="msg" id="dlMsg"></span>
     </div>
+    <p class="hint" style="margin-top:12px"><strong>Next section</strong> clears the Canvas export, the rubric exports, and the preview but keeps the WeBWorK scoring files loaded, so only the next section's Canvas export and rubric exports are needed. <strong>Clear everything</strong> removes all files. Either way, your overwrite option and column choices are kept.</p>
   </section>
 </main>
 
@@ -496,10 +514,18 @@ function detectType(rows){
   if(h0.includes('student name')&&h0.some(x=>/^points:/.test(x))) return 'rubric';
   return null;
 }
+function prompt(dropId,stId,show,text){
+  const d=$(dropId);
+  if(show){ setStatus(stId,''); d.classList.add('next'); $(stId).textContent=text; }
+  else d.classList.remove('next');
+}
 function refreshStatus(){
   setStatus('stCanvas',state.canvas?state.canvasName+' · '+state.canvas.students.length+' students':'');
   setStatus('stWW',state.ww.length?state.ww.length+' WeBWorK set'+(state.ww.length===1?'':'s')+' loaded':'');
   setStatus('stRB',state.rb.length?state.rb.length+' written or upload rubric file'+(state.rb.length===1?'':'s')+' loaded':'');
+  prompt('dropCanvas','stCanvas',state.awaitingNext&&!state.canvas,"Add the next section's Canvas export");
+  prompt('dropRB','stRB',state.awaitingNext&&!state.rb.length,"Add the next section's rubric exports");
+  if(state.ww.length&&state.wwKept){ const k=document.createElement('span'); k.className='kept'; k.textContent=' (kept from the last section)'; $('stWW').appendChild(k); }
 }
 async function ingest(files,boxId){
   const errs=[], moved=[];
@@ -510,7 +536,7 @@ async function ingest(files,boxId){
       if(!t) throw new Error(f.name+' was not recognized as a Canvas gradebook, WeBWorK scoring file, or rubric export.');
       if(t!==boxType) moved.push(f.name+' (read as '+{canvas:'the Canvas gradebook',webwork:'a WeBWorK file',rubric:'a rubric export'}[t]+')');
       if(t==='canvas'){state.canvas=parseCanvas(rows);state.canvasName=f.name;state.choice={};}
-      else if(t==='webwork'){const w=parseWeBWorK(rows,f.name);state.ww=state.ww.filter(x=>x.id!==w.id);state.ww.push(w);}
+      else if(t==='webwork'){const w=parseWeBWorK(rows,f.name);state.ww=state.ww.filter(x=>x.id!==w.id);state.ww.push(w);state.wwKept=false;}
       else {const r=parseRubric(rows,f.name);state.rb=state.rb.filter(x=>x.filename!==r.filename);state.rb.push(r);}
     }catch(e){errs.push(e.message);}
   }
@@ -526,6 +552,19 @@ wireDrop('dropCanvas','inCanvas',f=>ingest(f.slice(0,1),'stCanvas'));
 wireDrop('dropWW','inWW',f=>ingest(f,'stWW'));
 wireDrop('dropRB','inRB',f=>ingest(f,'stRB'));
 $('optOverwrite').addEventListener('change',render);
+function clearPage(keepWW){
+  const keep=keepWW&&state.ww.length>0;
+  state.canvas=null; state.canvasName=''; state.rb=[]; state.choice={}; state.assignments=[];
+  if(!keep) state.ww=[];
+  state.wwKept=keep; state.awaitingNext=keep;
+  ['stCanvas','stRB','stWW'].forEach(id=>{const el=$(id); el.textContent=''; el.classList.remove('err'); el.closest('.drop').classList.remove('done','hover','next');});
+  ['inCanvas','inRB','inWW'].forEach(id=>{$(id).value='';});
+  $('dlMsg').textContent=''; $('dlMsg').className='msg';
+  refreshStatus(); render();
+  document.querySelector('.drops').scrollIntoView({behavior:'smooth',block:'center'});
+}
+document.querySelectorAll('[data-reset]').forEach(b=>b.addEventListener('click',()=>clearPage(false)));
+document.querySelectorAll('[data-next]').forEach(b=>b.addEventListener('click',()=>clearPage(true)));
 
 function defaultColumn(w){
   const cols=state.canvas.columns;
@@ -545,7 +584,7 @@ function rubricFor(w){
 function render(){
   const opts={overwrite:$('optOverwrite').checked,manual:manualNames};
   if(!state.canvas||!state.ww.length){
-    $('sets').innerHTML='<p class="empty">Add a Canvas export and at least one WeBWorK file to see the sets.</p>';
+    $('sets').innerHTML='<p class="empty">'+(state.awaitingNext&&state.ww.length&&!state.canvas?"Add the next section's Canvas export and rubric exports to see the sets.":'Add a Canvas export and at least one WeBWorK file to see the sets.')+'</p>';
     $('preview').innerHTML='<p class="empty">Percentages appear here once a set is matched to a column.</p>';
     $('legend').hidden=true; $('issues').innerHTML=''; $('btnDownload').disabled=true; return;
   }
