@@ -322,6 +322,8 @@ function targetScore(h){
 function normName(s){return String(s).normalize('NFD').toLowerCase().replace(/[^a-z0-9]/g,'');}
 function nameTokens(s){return String(s).normalize('NFD').toLowerCase().replace(/[\u0300-\u036f']/g,'').split(/[^a-z0-9]+/).filter(Boolean);}
 
+/* Canvas adds a Test Student to every course; it is ignored everywhere */
+function isTestStudent(name){const n=String(name).toLowerCase().replace(/[^a-z]/g,'');return n==='studenttest'||n==='teststudent';}
 function parseCanvas(rows){
   const hdr=rows[0]||[];
   const ix=n=>hdr.findIndex(h=>h.trim().toLowerCase()===n);
@@ -334,6 +336,7 @@ function parseCanvas(rows){
     const row=rows[r]; if(!row||!row[iName]) continue;
     const [last,first]=row[iName].split(/,\s*/);
     const display=first?first+' '+last:row[iName];
+    if(isTestStudent(row[iName])) continue;
     students.push({row:r,name:row[iName],login:(row[iLogin]||'').trim(),canvasId:iId>=0?(row[iId]||'').trim():'',display,norm:normName(display),tokens:nameTokens(display)});
   }
   const columns=[];
@@ -385,6 +388,7 @@ function parseRubric(rows,filename){
     const pts={}; let any=false;
     qcols.forEach(q=>{const v=(row[q.col]??'').trim(); if(v!==''){pts[q.num]=parseFloat(v);any=true;}});
     const ids=idCols.map(c=>(row[c]||'').trim().toLowerCase()).filter(Boolean);
+    if(isTestStudent(row[iName])) continue;
     students.push({name:row[iName].trim(),norm:normName(row[iName]),tokens:nameTokens(row[iName]),ids,pts,any});
   }
   return {filename,key:setKey(filename),questions:qcols.map(q=>q.num),students};

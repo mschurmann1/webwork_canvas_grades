@@ -257,6 +257,8 @@ function isNum(t){return /^\d+$/.test(t);}
 function nameKey(s){return tokens(s).filter(t=>t.length>1).sort().join(' ');}
 const ID_COLS=new Set(['student','lastname','firstname','last name','first name','id','sis user id','sis login id','integration id','root account','section']);
 
+/* Canvas adds a Test Student to every course; it is ignored everywhere */
+function isTestStudent(name){const n=String(name).toLowerCase().replace(/[^a-z]/g,'');return n==='studenttest'||n==='teststudent';}
 function parseCanvas(rows){
   const hdr=rows[0]||[];
   const ix=n=>hdr.findIndex(h=>h.trim().toLowerCase()===n);
@@ -273,6 +275,7 @@ function parseCanvas(rows){
     else{[last,first]=(row[iName]||'').split(/,\s*/);first=first||'';}
     if(!last&&!first) continue;
     const name=first?last+', '+first:last;
+    if(isTestStudent(name)) continue;
     students.push({row:r,name,login:(row[iLogin]||'').trim().toLowerCase(),key:nameKey(first+' '+last)});
   }
   const columns=[];
@@ -535,7 +538,7 @@ function render(){
 
   Object.entries(used).forEach(([c,n])=>{if(n>1) issues.unshift(`Two or more sets are pointed at the same column: ${esc(tidy(state.canvas.hdr[c]))}. Choose a different column for one of them.`);});
   const conflict=Object.values(used).some(n=>n>1);
-  const missing=state.canvas.students.filter(s=>!link.map.has(s.row)&&!/^student,\s*test$/i.test(s.name));
+  const missing=state.canvas.students.filter(s=>!link.map.has(s.row));
   if(missing.length) issues.push(`No WeBWorK record for ${missing.length} Canvas student${missing.length===1?'':'s'}, left untouched: ${missing.map(s=>esc(s.name)).join('; ')}`);
   if(link.byName.length) issues.push(`Matched by name because the login IDs differ, please confirm: ${link.byName.map(esc).join('; ')}`);
   $('issues').innerHTML=issues.length?`<div class="issues"><strong>Check before importing</strong><ul>${issues.map(i=>'<li>'+i+'</li>').join('')}</ul></div>`:'';
