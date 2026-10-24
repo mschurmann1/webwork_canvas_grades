@@ -13,6 +13,9 @@
   --navy:#0C2340; --orange:#E5541C; --orange-soft:#FDEDE5;
   --flag:#9A5B00; --flag-bg:#FFF4D6; --bad:#B42318; --bad-bg:#FDECEA; --ok:#1D6B45;
   --zero:#98A2B0; --bk:#1F4E8C; --bk-bg:#E6EEF9;
+  --c-zero-bg:#FCD9D6; --c-zero:#A3170D; --c-partial-bg:#FFD9C2; --c-partial:#A9390B;
+  --c-blank-bg:#FFEFA8; --c-blank:#6E4A00; --c-held-bg:#E7DAFB; --c-held:#5326A0;
+  --c-none-bg:#E3E8EF; --c-none:#4B5664; --c-bk-bg:#CFE0FA; --c-bk:#163F78;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
@@ -21,12 +24,18 @@
     --bg:#0E151D; --surface:#16202B; --ink:#E6EBF1; --muted:#9AA6B5; --line:#2A3847;
     --navy:#BFD0E6; --orange:#F47A4A; --orange-soft:#3A2419;
     --flag:#F2C265; --flag-bg:#382C10; --bad:#F59A8F; --bad-bg:#3A1C19; --ok:#6FCF9C; --zero:#6B7888; --bk:#9CC0F0; --bk-bg:#182C45;
+    --c-zero-bg:#5A1F1A; --c-zero:#FFB4AB; --c-partial-bg:#5A2C12; --c-partial:#FFB98F;
+    --c-blank-bg:#4A3B0C; --c-blank:#FFE07A; --c-held-bg:#3A2A5C; --c-held:#D5BFFF;
+    --c-none-bg:#2A3847; --c-none:#B5C0CD; --c-bk-bg:#1C3A63; --c-bk:#A9CBFF;
   }
 }
 :root[data-theme="dark"]{
   --bg:#0E151D; --surface:#16202B; --ink:#E6EBF1; --muted:#9AA6B5; --line:#2A3847;
   --navy:#BFD0E6; --orange:#F47A4A; --orange-soft:#3A2419;
   --flag:#F2C265; --flag-bg:#382C10; --bad:#F59A8F; --bad-bg:#3A1C19; --ok:#6FCF9C; --zero:#6B7888; --bk:#9CC0F0; --bk-bg:#182C45;
+    --c-zero-bg:#5A1F1A; --c-zero:#FFB4AB; --c-partial-bg:#5A2C12; --c-partial:#FFB98F;
+    --c-blank-bg:#4A3B0C; --c-blank:#FFE07A; --c-held-bg:#3A2A5C; --c-held:#D5BFFF;
+    --c-none-bg:#2A3847; --c-none:#B5C0CD; --c-bk-bg:#1C3A63; --c-bk:#A9CBFF;
 }
 *,*::before,*::after{box-sizing:inherit}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -73,8 +82,19 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .preview td.none.flag{background:var(--flag-bg);color:var(--flag);font-size:.78rem}
 .preview td.name{position:sticky;left:0;background:var(--surface);font-weight:500}
 .preview th:first-child{position:sticky;left:0;z-index:1}
-.legend{display:flex;flex-wrap:wrap;gap:16px;margin:10px 0 0;font-size:.82rem;color:var(--muted)}
-.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px;background:var(--sw)}
+.preview td.c{font-weight:600}
+.c-ok{}
+.c-zero{background:var(--c-zero-bg);color:var(--c-zero)}
+.c-bk{background:var(--c-bk-bg);color:var(--c-bk)}
+.c-partial{background:var(--c-partial-bg);color:var(--c-partial)}
+.c-blank{background:var(--c-blank-bg);color:var(--c-blank)}
+.c-held{background:var(--c-held-bg);color:var(--c-held)}
+.c-none{background:var(--c-none-bg);color:var(--c-none)}
+.preview td.c-partial,.preview td.c-blank,.preview td.c-held,.preview td.c-none{text-align:center;font-size:.8rem}
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px 18px;margin:12px 0 0;font-size:.84rem;color:var(--ink)}
+.legend h3{grid-column:1/-1;margin:6px 0 0;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.legend div{display:flex;align-items:center;gap:10px}
+.chip{display:inline-block;flex:none;white-space:nowrap;min-width:62px;text-align:center;padding:3px 8px;border-radius:5px;font-weight:600;font-size:.8rem;border:1px solid var(--line)}
 .actions{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
 button.primary{font:inherit;font-weight:600;padding:11px 20px;border-radius:8px;border:0;background:var(--orange);color:#fff;cursor:pointer}
 button.primary:disabled{opacity:.45;cursor:not-allowed}
@@ -218,9 +238,16 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
     <h2>Preview</h2>
     <div id="preview"><p class="empty">Percentages appear here once a set is matched to a column.</p></div>
     <div class="legend" id="legend" hidden>
-      <span style="--sw:var(--bk-bg)">From the Canvas written or upload column</span>
-      <span style="--sw:var(--flag-bg)">Not graded yet, left blank in the file</span>
-      <span style="--sw:var(--line)">No WeBWorK record, left blank</span>
+      <h3>Entered in Canvas</h3>
+      <div><span class="chip c-ok">85.00</span> Percentage from the rubric export</div>
+      <div><span class="chip c-bk">67.50</span> Percentage from the Canvas written or upload column (no rubric row)</div>
+      <div><span class="chip c-zero">0.00</span> A 0 that will be entered in Canvas</div>
+      <h3>Not entered, left blank in the file</h3>
+      <div><span class="chip c-partial">partial</span> Rubric only partly rated</div>
+      <div><span class="chip c-blank">blank</span> No rubric rating or upload score yet</div>
+      <div><span class="chip c-held">0 held</span> Would be 0, held back instead of entered</div>
+      <div><span class="chip c-none">no WW</span> No WeBWorK record, Canvas cell untouched</div>
+      <p class="hint" style="grid-column:1/-1;margin:4px 0 0">Hover over any cell to see the reason. The report button in Download lists every cell that is not entered.</p>
     </div>
   </section>
 
@@ -229,11 +256,13 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
     <p class="hint">The file keeps every row and column of your Canvas export, with only the chosen columns filled in. Import it through Canvas Gradebook, Import.</p>
     <div class="actions">
       <button class="primary" id="btnDownload" disabled>Download Canvas import file</button>
+      <button class="reset" type="button" id="btnReport" disabled>Download report of blank and partial grades</button>
       <button class="reset" type="button" data-next>Next section (keep WeBWorK files)</button>
       <button class="reset" type="button" data-reset>Clear everything</button>
       <span class="msg" id="dlMsg"></span>
     </div>
-    <p class="hint" style="margin-top:12px"><strong>Next section</strong> clears the Canvas export, the rubric exports, and the preview but keeps the WeBWorK scoring files loaded, so only the next section's Canvas export and rubric exports are needed. <strong>Clear everything</strong> removes all files. Either way, your overwrite option and column choices are kept.</p>
+    <p class="hint" style="margin-top:12px">The report lists every student who was not filled, by set, with the reason and what to do: partial or missing rubric ratings, 0 held, no WeBWorK record, and rubric names that could not be matched. It opens in Excel and is for your records only, not for importing into Canvas.</p>
+    <p class="hint" style="margin-top:8px"><strong>Next section</strong> clears the Canvas export, the rubric exports, and the preview but keeps the WeBWorK scoring files loaded, so only the next section's Canvas export and rubric exports are needed. <strong>Clear everything</strong> removes all files. Either way, your overwrite option and column choices are kept.</p>
   </section>
 </main>
 
@@ -409,7 +438,7 @@ function computeSet(ww,rb,canvas,opts,backup){
   canvas.students.forEach(s=>{
     const login=s.login.toLowerCase();
     const w=ww.students.get(login);
-    if(!w){results.set(s.row,{state:'none'});noWW++;return;}
+    if(!w){results.set(s.row,{state:'none',status:'No WeBWorK record',reason:'No student with login '+(s.login||'(blank)')+' in the WeBWorK file for this set.',action:"Check the student's login in WeBWorK, or whether the student is in the WeBWorK course. The Canvas cell is left untouched."});noWW++;return;}
     const r=link.map.get(login);
     /* A rating must actually be present (a 0 or a 1) for every problem the rubric covers.
        Blank ratings are never assumed to be 0. */
@@ -429,19 +458,28 @@ function computeSet(ww,rb,canvas,opts,backup){
     /* every covered problem rated 0 in the rubric export */
     const allRubricZero=hasRubric&&covered.every(p=>r.pts[p.num]===0);
     const T=ww.totalValue>0?ww.totalValue:1;
+    const wwPct=Math.round(raw/T*10000)/100;
+    const ratings=r?covered.map(p=>'P'+p.num+': '+(isFinite(r.pts[p.num])?r.pts[p.num]:'blank')).join(', '):'';
+    const missing=r?covered.filter(p=>!isFinite(r.pts[p.num])).map(p=>p.num):[];
+    const info={wwPct,ratings};
+    const bkCell=useBk?((canvas.rows[s.row]||[])[backup.index]||'').trim():'';
     if(hasRubric){
       const pct=Math.round(earned/T*10000)/100;
       if(pct===0&&!(zeroedByRubric>0||allRubricZero)){
         if(opts.wwZero&&raw===0){ results.set(s.row,{state:'ok',pct:0,wwZero:true,reason:'Written work graded, but no WeBWorK credit in the set, 0 entered (optional setting)'}); filled++; wwZeros++; return; }
         heldZero++;
-        results.set(s.row,{state:'blank',zeroHeld:true,reason:'Would be 0, but not because of a 0 in the rubric export (no WeBWorK credit to multiply), left blank'});
+        results.set(s.row,{...info,state:'blank',zeroHeld:true,status:'0 held',
+          reason:raw===0?'Written work is fully rated, but the student earned no WeBWorK credit in the set, so the grade would be 0.':'The only WeBWorK credit earned is on problems with no rubric column, so the grade would be 0.',
+          action:raw===0?'Enter 0 by hand in Canvas if intended, or turn on the option to enter 0 when WeBWorK shows no credit.':'Check that the rubric covers every WeBWorK problem in the set.'});
         return;
       }
-      results.set(s.row,{state:'ok',pct,rubricZero:pct===0}); filled++; return;
+      results.set(s.row,{...info,state:'ok',pct,rubricZero:pct===0}); filled++; return;
     }
     if(r){ /* the rubric has a row for this student but it is not fully rated: never guess */
       noRubric++;
-      results.set(s.row,{state:'blank',partial,reason:partial?'Rubric only partly rated, left blank':'Rubric row has no ratings yet, left blank'});
+      results.set(s.row,{...info,state:'blank',partial,status:partial?'Partial':'Blank',
+        reason:partial?'Rubric is only partly rated. No rating on problem'+(missing.length===1?' ':'s ')+missing.join(', ')+'.':'The student has a row in the rubric export, but no problems are rated yet.',
+        action:partial?'Finish rating problem'+(missing.length===1?' ':'s ')+missing.join(', ')+' in SpeedGrader, then export the rubric again.':"Rate this student's written work in SpeedGrader, then export the rubric again."});
       return;
     }
     if(useBk){
@@ -453,18 +491,39 @@ function computeSet(ww,rb,canvas,opts,backup){
         if(pct===0){
           if(opts.wwZero&&raw===0){ results.set(s.row,{state:'backup',pct:0,wwZero:true,detail:cell+' of '+backup.points,reason:'Upload score '+cell+' of '+backup.points+', but no WeBWorK credit in the set, 0 entered (optional setting)'}); fromBackup++; filled++; wwZeros++; return; }
           heldZero++;
-          results.set(s.row,{state:'blank',zeroHeld:true,reason:'Canvas backup column would give 0, which is not a 0 from a rubric export, left blank'});
+          results.set(s.row,{...info,state:'blank',zeroHeld:true,status:'0 held',backupScore:cell+' of '+backup.points,
+            reason:raw===0?'No rubric row, so the backup upload score ('+cell+' of '+backup.points+') was used, but the student earned no WeBWorK credit in the set, so the grade would be 0.':'No rubric row, so the backup upload score was used, and it is '+cell+' of '+backup.points+', so the grade would be 0.',
+            action:raw===0?'Enter 0 by hand in Canvas if intended, or turn on the option to enter 0 when WeBWorK shows no credit.':'Check the upload score. Enter 0 by hand in Canvas if intended.'});
           return;
         }
-        results.set(s.row,{state:'backup',pct,detail:cell+' of '+backup.points});
+        results.set(s.row,{...info,state:'backup',pct,detail:cell+' of '+backup.points});
         fromBackup++; filled++; return;
       }
     }
     noRubric++;
-    results.set(s.row,{state:'blank',partial,reason:partial?'Rubric only partly rated, left blank':'No rubric rating or upload score yet, left blank'});
+    results.set(s.row,{...info,state:'blank',partial,status:'Blank',
+      reason:(!rb?'No rubric export is loaded for this set':'The student has no row in the rubric export')+(useBk?', and the backup column has no upload score.':', and no backup column is chosen.'),
+      action:rb?'Check whether the student submitted written work. If it was graded, check the name match or export the rubric again.':'Load the rubric export for this set, or choose a backup column.'});
   });
   const mismatch = rb ? ww.problems.map(p=>p.num).filter(n=>!rb.questions.includes(n)) : [];
-  return {results,filled,noRubric,noWW,fromBackup,heldZero,wwZeros,unmatched:link.unmatched,guesses:link.guesses,mismatch};
+  return {results,filled,noRubric,noWW,fromBackup,heldZero,wwZeros,unmatched:link.unmatched,guesses:link.guesses,mismatch,rubricName:rb?rb.filename:''};
+}
+
+/* One row per student who was not filled, plus rubric names that could not be matched */
+function buildReport(canvas,assignments){
+  const iSec=canvas.hdr.findIndex(h=>h.trim().toLowerCase()==='section');
+  const order={'Partial':1,'Blank':2,'0 held':3,'No WeBWorK record':4,'Unmatched rubric name':5};
+  const rows=[];
+  assignments.forEach(a=>{
+    canvas.students.forEach(s=>{
+      const r=a.calc.results.get(s.row);
+      if(!r||!r.status) return;
+      rows.push([a.w.label,r.status,s.name,s.login,iSec>=0?(canvas.rows[s.row][iSec]||''):'',r.reason,r.action,r.wwPct!=null?r.wwPct.toFixed(2):'',r.ratings||'',r.backupScore||'']);
+    });
+    a.calc.unmatched.forEach(u=>rows.push([a.w.label,'Unmatched rubric name',u.name,'','','This name in '+a.calc.rubricName+' could not be matched to a Canvas student, so the rubric ratings for it are not used.','Pick the student by hand in the unmatched names list on the page, then download again.','','','']));
+  });
+  rows.sort((x,y)=>String(x[0]).localeCompare(String(y[0]),undefined,{numeric:true})||order[x[1]]-order[y[1]]||x[2].localeCompare(y[2]));
+  return {count:rows.length,csv:'\ufeff'+toCSV([['Set','Status','Student','SIS Login ID','Section','Reason','What to do','WeBWorK %','Rubric ratings','Backup upload score'],...rows])};
 }
 
 function buildOutput(canvas,assignments,opts){
@@ -593,7 +652,7 @@ function render(){
   if(!state.canvas||!state.ww.length){
     $('sets').innerHTML='<p class="empty">'+(state.awaitingNext&&state.ww.length&&!state.canvas?"Add the next section's Canvas export and rubric exports to see the sets.":'Add a Canvas export and at least one WeBWorK file to see the sets.')+'</p>';
     $('preview').innerHTML='<p class="empty">Percentages appear here once a set is matched to a column.</p>';
-    $('legend').hidden=true; $('issues').innerHTML=''; $('btnDownload').disabled=true; return;
+    $('legend').hidden=true; $('issues').innerHTML=''; $('btnDownload').disabled=true; $('btnReport').disabled=true; return;
   }
   const assignments=[], issues=[], used={}, unmatchedAll=new Map(), guessesAll=new Map();
   let html='<div class="tablewrap"><table><thead><tr><th>Set</th><th>Problems</th><th>Rubric file (per problem)</th><th>Canvas backup (written or upload score)</th><th>WeBWorK HW grade column (output)</th><th>Result</th></tr></thead><tbody>';
@@ -688,9 +747,17 @@ function render(){
       p+=`<tr><td class="name">${esc(s.name)}</td>`;
       assignments.forEach(a=>{
         const r=a.calc.results.get(s.row)||{state:'none'};
-        if(r.state==='blank') p+=`<td class="none flag" title="${esc(r.reason)}">${r.zeroHeld?'0 held':r.partial?'partial':'blank'}</td>`;
-        else if(r.pct==null) p+=`<td class="none">·</td>`;
-        else p+=`<td class="num${r.state==='backup'?' bk':''}${r.pct===0&&(r.state==='ok'||r.wwZero)?' zero':''}"${r.reason?` title="${esc(r.reason)}"`:r.detail?` title="Canvas upload score ${esc(r.detail)}"`:''}>${r.pct.toFixed(2)}</td>`;
+        if(r.state==='blank'){
+          const k=r.zeroHeld?'held':r.partial?'partial':'blank';
+          p+=`<td class="c c-${k}" title="${esc(r.reason)}">${k==='held'?'0 held':k}</td>`;
+        }
+        else if(r.state==='none') p+=`<td class="c c-none" title="${esc(r.reason||'No WeBWorK record')}">no WW</td>`;
+        else if(r.pct==null) p+=`<td></td>`;
+        else {
+          const k=r.pct===0?'zero':r.state==='backup'?'bk':'ok';
+          const t=r.reason||(r.detail?'Canvas upload score '+r.detail:k==='zero'?'0 from a 0 rating in the rubric export, entered in Canvas':'');
+          p+=`<td class="num${k==='ok'?'':' c c-'+k}"${t?` title="${esc(t)}"`:''}>${r.pct.toFixed(2)}</td>`;
+        }
       });
       p+='</tr>';
     });
@@ -699,6 +766,7 @@ function render(){
   }
   state.assignments=assignments; state.opts=opts;
   $('btnDownload').disabled=!assignments.length||conflict;
+  $('btnReport').disabled=!assignments.length;
   $('dlMsg').textContent=conflict?'Fix the duplicate column choice to enable the download.':'';
   $('dlMsg').className='msg'+(conflict?' err':'');
 }
@@ -706,6 +774,27 @@ function render(){
 let downloadsP=null;
 try{ if(window.claude&&window.claude.use) downloadsP=window.claude.use('downloads'); }catch(e){}
 
+async function saveCSV(name,data,doneText){
+  const msg=$('dlMsg');
+  let dl=null; try{dl=downloadsP?await downloadsP:null;}catch(e){}
+  if(dl){
+    try{await dl.save({filename:name,data}); msg.textContent='Saved '+name+'.'+doneText; msg.className='msg good';}
+    catch(e){
+      msg.className='msg'+(e&&e.code==='declined'?'':' err');
+      msg.textContent=e&&e.code==='declined'?'Download cancelled.':'The download could not be completed ('+(e&&e.code||'error')+').';
+    }
+    return;
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([data],{type:'text/csv'}));
+  a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  msg.textContent='Downloaded '+name+'.'+doneText; msg.className='msg good';
+}
+$('btnReport').addEventListener('click',()=>{
+  const rep=buildReport(state.canvas,state.assignments);
+  if(!rep.count){ $('dlMsg').textContent='Nothing to report: every student in the chosen sets was filled.'; $('dlMsg').className='msg good'; return; }
+  saveCSV(state.canvasName.replace(/\.csv$/i,'')+'_report.csv',rep.csv,` ${rep.count} row${rep.count===1?'':'s'} to review.`);
+});
 $('btnDownload').addEventListener('click',async()=>{
   const out=buildOutput(state.canvas,state.assignments,state.opts);
   const name=state.canvasName.replace(/\.csv$/i,'')+'_filled.csv';
