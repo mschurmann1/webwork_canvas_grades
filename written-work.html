@@ -59,6 +59,8 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .pill.ok{color:var(--ok)}
 .opts{display:flex;flex-wrap:wrap;gap:18px;margin:14px 0 0;font-size:.9rem}
 .opts label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.optnote{margin:10px 0 0;padding:10px 12px;border-left:3px solid var(--line);background:var(--bg);font-size:.86rem;color:var(--muted);max-width:80ch}
+.optnote strong{color:var(--ink)}
 .issues{margin:14px 0 0;padding:12px 14px;background:var(--flag-bg);color:var(--flag);border-radius:8px;font-size:.88rem}
 .issues ul{margin:6px 0 0;padding-left:18px}
 .preview th.set{white-space:normal;min-width:84px;max-width:120px;font-size:.75rem;line-height:1.3}
@@ -198,14 +200,16 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
     <div id="sets"><p class="empty">Add a Canvas export and at least one WeBWorK file to see the sets.</p></div>
     <div class="opts">
       <label><input type="checkbox" id="optOverwrite" checked> Overwrite scores already in the chosen column</label>
+      <label><input type="checkbox" id="optWWZero"> Enter 0 when written work was graded but WeBWorK shows no credit</label>
     </div>
+    <p class="optnote"><strong>About the 0 option (off by default):</strong> Some students upload written work but earn no points in WeBWorK for the set. When this option is off, those students are left blank and shown as "0 held" in the preview, so nothing is entered in Canvas. When it is on, they receive a 0, as long as their written work has a rubric rating for every problem or a score in the Canvas backup column. Students with no written work score at all are still left blank either way.</p>
     <div id="issues"></div>
     <details class="formula">
       <summary>How the percentage is calculated</summary>
       <p>Files and columns are paired by section number however they are named (Sec 2.4, Section 1.5, HW 2.4, Part 2, Pt II, Part B). When a section has more than one Canvas column, the WeBWorK or homework grade column is chosen over written work, upload, or rubric columns. Rubric rows are matched to Canvas by the abc123 ID when the export includes one, otherwise by full name, allowing names in a different order or with middle names and initials missing. Names that still cannot be matched are listed for you to pick by hand.</p>
       <p>A student is only scored when every problem has an actual rating (0 or 1) in the rubric file. Blank ratings are never treated as 0: if the Canvas backup column has no score either, the student's cell is left blank so nothing is entered in Canvas. A rubric that is only partly rated is also left blank.</p>
       <p>If a student has no row at all in the rubric file (or no rubric file is loaded for the set), the Canvas backup column is used instead: the student's WeBWorK percentage times their written or upload score divided by that column's points possible. For example, 90% in WeBWorK with 3 of 4 on the upload gives 67.50.</p>
-      <p>A 0 is entered in Canvas only when it comes from multiplying by a 0 rating in a rubric export: either the rubric zeroed out WeBWorK credit the student earned, or every problem was rated 0. A 0 that would come only from WeBWorK scores of 0, or from the Canvas backup column, is left blank and shown as "0 held" in the preview.</p>
+      <p>A 0 is entered in Canvas only when it comes from multiplying by a 0 rating in a rubric export: either the rubric zeroed out WeBWorK credit the student earned, or every problem was rated 0. A 0 that would come only from WeBWorK scores of 0, or from the Canvas backup column, is left blank and shown as "0 held" in the preview. The exception is the optional setting "Enter 0 when written work was graded but WeBWorK shows no credit": when it is checked, a student with a complete rubric rating or a backup score who earned no WeBWorK points in the set receives a 0.</p>
       <p>For each problem: WeBWorK score (0 to 1) × problem value × rubric points (1 or 0). The products are summed and divided by the total problem value for the set, then multiplied by 100 and rounded to two decimals. Students in Canvas with no WeBWorK record for a set are left untouched.</p>
     </details>
   </section>
@@ -401,7 +405,7 @@ function computeSet(ww,rb,canvas,opts,backup){
   const link=rb?linkRubric(rb,canvas,ww,opts.manual):{map:new Map(),unmatched:[],guesses:[]};
   const bkPts=backup?parseFloat(backup.points):NaN;
   const useBk=!!backup&&isFinite(bkPts)&&bkPts>0;
-  const results=new Map(); let filled=0, noRubric=0, noWW=0, fromBackup=0, heldZero=0;
+  const results=new Map(); let filled=0, noRubric=0, noWW=0, fromBackup=0, heldZero=0, wwZeros=0;
   canvas.students.forEach(s=>{
     const login=s.login.toLowerCase();
     const w=ww.students.get(login);
@@ -428,6 +432,7 @@ function computeSet(ww,rb,canvas,opts,backup){
     if(hasRubric){
       const pct=Math.round(earned/T*10000)/100;
       if(pct===0&&!(zeroedByRubric>0||allRubricZero)){
+        if(opts.wwZero&&raw===0){ results.set(s.row,{state:'ok',pct:0,wwZero:true,reason:'Written work graded, but no WeBWorK credit in the set, 0 entered (optional setting)'}); filled++; wwZeros++; return; }
         heldZero++;
         results.set(s.row,{state:'blank',zeroHeld:true,reason:'Would be 0, but not because of a 0 in the rubric export (no WeBWorK credit to multiply), left blank'});
         return;
@@ -446,6 +451,7 @@ function computeSet(ww,rb,canvas,opts,backup){
         const frac=Math.max(0,Math.min(1,v/bkPts));
         const pct=Math.round(raw/T*frac*10000)/100;
         if(pct===0){
+          if(opts.wwZero&&raw===0){ results.set(s.row,{state:'backup',pct:0,wwZero:true,detail:cell+' of '+backup.points,reason:'Upload score '+cell+' of '+backup.points+', but no WeBWorK credit in the set, 0 entered (optional setting)'}); fromBackup++; filled++; wwZeros++; return; }
           heldZero++;
           results.set(s.row,{state:'blank',zeroHeld:true,reason:'Canvas backup column would give 0, which is not a 0 from a rubric export, left blank'});
           return;
@@ -458,7 +464,7 @@ function computeSet(ww,rb,canvas,opts,backup){
     results.set(s.row,{state:'blank',partial,reason:partial?'Rubric only partly rated, left blank':'No rubric rating or upload score yet, left blank'});
   });
   const mismatch = rb ? ww.problems.map(p=>p.num).filter(n=>!rb.questions.includes(n)) : [];
-  return {results,filled,noRubric,noWW,fromBackup,heldZero,unmatched:link.unmatched,guesses:link.guesses,mismatch};
+  return {results,filled,noRubric,noWW,fromBackup,heldZero,wwZeros,unmatched:link.unmatched,guesses:link.guesses,mismatch};
 }
 
 function buildOutput(canvas,assignments,opts){
@@ -467,7 +473,7 @@ function buildOutput(canvas,assignments,opts){
   assignments.forEach(a=>{
     a.calc.results.forEach((res,rowIdx)=>{
       if(res.pct==null) return;
-      if(res.pct===0&&!res.rubricZero) return; /* a 0 is only written when a rubric 0 produced it */
+      if(res.pct===0&&!res.rubricZero&&!res.wwZero) return; /* a 0 is only written when a rubric 0 produced it, or the optional no WeBWorK credit setting is on */
       const row=rows[rowIdx];
       while(row.length<=a.col) row.push('');
       if(!opts.overwrite && (row[a.col]||'').trim()!==''){skippedExisting++;return;}
@@ -552,6 +558,7 @@ wireDrop('dropCanvas','inCanvas',f=>ingest(f.slice(0,1),'stCanvas'));
 wireDrop('dropWW','inWW',f=>ingest(f,'stWW'));
 wireDrop('dropRB','inRB',f=>ingest(f,'stRB'));
 $('optOverwrite').addEventListener('change',render);
+$('optWWZero').addEventListener('change',render);
 function clearPage(keepWW){
   const keep=keepWW&&state.ww.length>0;
   state.canvas=null; state.canvasName=''; state.rb=[]; state.choice={}; state.assignments=[];
@@ -582,7 +589,7 @@ function rubricFor(w){
 }
 
 function render(){
-  const opts={overwrite:$('optOverwrite').checked,manual:manualNames};
+  const opts={overwrite:$('optOverwrite').checked,wwZero:$('optWWZero').checked,manual:manualNames};
   if(!state.canvas||!state.ww.length){
     $('sets').innerHTML='<p class="empty">'+(state.awaitingNext&&state.ww.length&&!state.canvas?"Add the next section's Canvas export and rubric exports to see the sets.":'Add a Canvas export and at least one WeBWorK file to see the sets.')+'</p>';
     $('preview').innerHTML='<p class="empty">Percentages appear here once a set is matched to a column.</p>';
@@ -627,6 +634,7 @@ function render(){
       if(!rb&&!bkCol) res+=' <span class="pill bad">No rubric or backup</span>';
       if(calc.fromBackup) res+=` <span class="pill backup">${calc.fromBackup} from Canvas column</span>`;
       if(calc.noRubric) res+=` <span class="pill flag">${calc.noRubric} left blank</span>`;
+      if(calc.wwZeros) res+=` <span class="pill">${calc.wwZeros} zero${calc.wwZeros===1?'':'s'}, no WeBWorK credit</span>`;
       if(calc.heldZero) res+=` <span class="pill flag">${calc.heldZero} zero${calc.heldZero===1?'':'s'} not from rubric, left blank</span>`;
       if(rb&&calc.unmatched.length) res+=` <span class="pill bad">${calc.unmatched.length} unmatched</span>`;
     }
@@ -682,7 +690,7 @@ function render(){
         const r=a.calc.results.get(s.row)||{state:'none'};
         if(r.state==='blank') p+=`<td class="none flag" title="${esc(r.reason)}">${r.zeroHeld?'0 held':r.partial?'partial':'blank'}</td>`;
         else if(r.pct==null) p+=`<td class="none">·</td>`;
-        else p+=`<td class="num${r.state==='backup'?' bk':''}${r.pct===0&&r.state==='ok'?' zero':''}"${r.detail?` title="Canvas upload score ${esc(r.detail)}"`:''}>${r.pct.toFixed(2)}</td>`;
+        else p+=`<td class="num${r.state==='backup'?' bk':''}${r.pct===0&&(r.state==='ok'||r.wwZero)?' zero':''}"${r.reason?` title="${esc(r.reason)}"`:r.detail?` title="Canvas upload score ${esc(r.detail)}"`:''}>${r.pct.toFixed(2)}</td>`;
       });
       p+='</tr>';
     });
