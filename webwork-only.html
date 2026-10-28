@@ -13,6 +13,9 @@
   --navy:#0C2340; --orange:#E5541C; --orange-soft:#FDEDE5;
   --flag:#9A5B00; --flag-bg:#FFF4D6; --bad:#B42318; --bad-bg:#FDECEA; --ok:#1D6B45;
   --zero:#98A2B0; --bk:#1F4E8C; --bk-bg:#E6EEF9;
+  --c-zero-bg:#FCD9D6; --c-zero:#A3170D; --c-kept-bg:#FFD9C2; --c-kept:#A9390B;
+  --c-blank-bg:#FFEFA8; --c-blank:#6E4A00; --c-held-bg:#E7DAFB; --c-held:#5326A0;
+  --c-none-bg:#E3E8EF; --c-none:#4B5664; --c-bk-bg:#CFE0FA; --c-bk:#163F78; --c-ex-bg:#D3F0DF; --c-ex:#145C36;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
@@ -21,12 +24,18 @@
     --bg:#0E151D; --surface:#16202B; --ink:#E6EBF1; --muted:#9AA6B5; --line:#2A3847;
     --navy:#BFD0E6; --orange:#F47A4A; --orange-soft:#3A2419;
     --flag:#F2C265; --flag-bg:#382C10; --bad:#F59A8F; --bad-bg:#3A1C19; --ok:#6FCF9C; --zero:#6B7888; --bk:#9CC0F0; --bk-bg:#182C45;
+    --c-zero-bg:#5A1F1A; --c-zero:#FFB4AB; --c-kept-bg:#5A2C12; --c-kept:#FFB98F;
+    --c-blank-bg:#4A3B0C; --c-blank:#FFE07A; --c-held-bg:#3A2A5C; --c-held:#D5BFFF;
+    --c-none-bg:#2A3847; --c-none:#B5C0CD; --c-bk-bg:#1C3A63; --c-bk:#A9CBFF; --c-ex-bg:#163D29; --c-ex:#9BE3B9;
   }
 }
 :root[data-theme="dark"]{
   --bg:#0E151D; --surface:#16202B; --ink:#E6EBF1; --muted:#9AA6B5; --line:#2A3847;
   --navy:#BFD0E6; --orange:#F47A4A; --orange-soft:#3A2419;
   --flag:#F2C265; --flag-bg:#382C10; --bad:#F59A8F; --bad-bg:#3A1C19; --ok:#6FCF9C; --zero:#6B7888; --bk:#9CC0F0; --bk-bg:#182C45;
+    --c-zero-bg:#5A1F1A; --c-zero:#FFB4AB; --c-kept-bg:#5A2C12; --c-kept:#FFB98F;
+    --c-blank-bg:#4A3B0C; --c-blank:#FFE07A; --c-held-bg:#3A2A5C; --c-held:#D5BFFF;
+    --c-none-bg:#2A3847; --c-none:#B5C0CD; --c-bk-bg:#1C3A63; --c-bk:#A9CBFF; --c-ex-bg:#163D29; --c-ex:#9BE3B9;
 }
 *,*::before,*::after{box-sizing:inherit}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -71,8 +80,20 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .preview td.none.flag{background:var(--flag-bg);color:var(--flag);font-size:.78rem}
 .preview td.name{position:sticky;left:0;background:var(--surface);font-weight:500}
 .preview th:first-child{position:sticky;left:0;z-index:1}
-.legend{display:flex;flex-wrap:wrap;gap:16px;margin:10px 0 0;font-size:.82rem;color:var(--muted)}
-.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px;background:var(--sw)}
+.preview td.c{font-weight:600}
+.c-ok{}
+.c-zero{background:var(--c-zero-bg);color:var(--c-zero)}
+.c-bk{background:var(--c-bk-bg);color:var(--c-bk)}
+.c-kept{background:var(--c-kept-bg);color:var(--c-kept)}
+.c-blank{background:var(--c-blank-bg);color:var(--c-blank)}
+.c-held{background:var(--c-held-bg);color:var(--c-held)}
+.c-none{background:var(--c-none-bg);color:var(--c-none)}
+.c-ex{background:var(--c-ex-bg);color:var(--c-ex)}
+.preview td.c-blank,.preview td.c-held,.preview td.c-none,.preview td.c-ex{text-align:center;font-size:.8rem}
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px 18px;margin:12px 0 0;font-size:.84rem;color:var(--ink)}
+.legend h3{grid-column:1/-1;margin:6px 0 0;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.legend div{display:flex;align-items:center;gap:10px}
+.chip{display:inline-block;flex:none;white-space:nowrap;min-width:62px;text-align:center;padding:3px 8px;border-radius:5px;font-weight:600;font-size:.8rem;border:1px solid var(--line)}
 .actions{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
 button.primary{font:inherit;font-weight:600;padding:11px 20px;border-radius:8px;border:0;background:var(--orange);color:#fff;cursor:pointer}
 button.primary:disabled{opacity:.45;cursor:not-allowed}
@@ -203,9 +224,17 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
     <h2>Preview</h2>
     <div id="preview"><p class="empty">Scores appear here once a set is matched to a column.</p></div>
     <div class="legend" id="legend" hidden>
-      <span style="--sw:var(--bk-bg)">Different from the score now in Canvas</span>
-      <span style="--sw:var(--flag-bg)">Left blank, excused (EX), or existing score kept</span>
-      <span style="--sw:var(--line)">No WeBWorK record, left untouched</span>
+      <h3>Entered in Canvas</h3>
+      <div><span class="chip c-ok">24.80</span> Same as the score already in Canvas</div>
+      <div><span class="chip c-bk">21.50</span> Changes the score now in Canvas</div>
+      <div><span class="chip c-zero">0</span> A 0 that will be entered in Canvas</div>
+      <h3>Not entered, Canvas cell left as is</h3>
+      <div><span class="chip c-kept">18.00</span> Existing Canvas score kept (overwrite is off)</div>
+      <div><span class="chip c-blank">blank</span> No total for the set in the WeBWorK file</div>
+      <div><span class="chip c-held">0 held</span> Would be 0, held back because the 0 option is off</div>
+      <div><span class="chip c-ex">EX</span> Excused in Canvas, EX is kept</div>
+      <div><span class="chip c-none">no WW</span> No WeBWorK record, Canvas cell untouched</div>
+      <p class="hint" style="grid-column:1/-1;margin:4px 0 0">Hover over any cell to see the reason. The report button in Download lists every cell that is not entered.</p>
     </div>
   </section>
 
@@ -214,11 +243,13 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
     <p class="hint">The file keeps every row and column of your Canvas export, with only the chosen columns filled in. Import it through Canvas Gradebook, Import.</p>
     <div class="actions">
       <button class="primary" id="btnDownload" disabled>Download Canvas import file</button>
+      <button class="reset" type="button" id="btnReport" disabled>Download report of blank and held grades</button>
       <button class="reset" type="button" data-next>Next section (keep WeBWorK file)</button>
       <button class="reset" type="button" data-reset>Clear everything</button>
       <span class="msg" id="dlMsg"></span>
     </div>
-    <p class="hint" style="margin-top:12px"><strong>Next section</strong> clears the Canvas export and the preview but keeps the WeBWorK totals file loaded, so only the next section's Canvas export is needed. <strong>Clear everything</strong> removes both files. Either way, your Percentage or Score choice, the two options, and your column choices are kept.</p>
+    <p class="hint" style="margin-top:12px">The report lists every student whose cell was not filled, by set, with the reason and what to do: no total in WeBWorK, 0 held, existing score kept, excused, no WeBWorK record, and students matched by name. It opens in Excel and is for your records only, not for importing into Canvas.</p>
+    <p class="hint" style="margin-top:8px"><strong>Next section</strong> clears the Canvas export and the preview but keeps the WeBWorK totals file loaded, so only the next section's Canvas export is needed. <strong>Clear everything</strong> removes both files. Either way, your Percentage or Score choice, the two options, and your column choices are kept.</p>
   </section>
 </main>
 
@@ -369,20 +400,46 @@ function computeSet(set,col,canvas,link,opts){
   const results=new Map(); let filled=0, noWW=0, blank=0, kept=0, zeros=0, credit=0, excused=0;
   canvas.students.forEach(s=>{
     const existing=((canvas.rows[s.row]||[])[col.index]||'').trim();
-    if(/^ex$/i.test(existing)){results.set(s.row,{state:'excused'});excused++;return;}
+    if(/^ex$/i.test(existing)){results.set(s.row,{state:'excused',status:'Excused',existing,reason:'The student is excused (EX) in Canvas for this assignment, so EX is kept.',action:'Nothing to do if the excusal is intended.'});excused++;return;}
     const w=link.map.get(s.row);
-    if(!w){results.set(s.row,{state:'none'});noWW++;return;}
-    const frac=fraction(set,w.row);
-    if(frac==null){results.set(s.row,{state:'blank',reason:'No total in the WeBWorK file, left blank'});blank++;return;}
+    if(!w){results.set(s.row,{state:'none',status:'No WeBWorK record',existing,reason:'No student with login '+(s.login||'(blank)')+' in the WeBWorK totals file.',action:"Check the student's login in WeBWorK, or whether the student is in the WeBWorK course. The Canvas cell is left untouched."});noWW++;return;}
+    const frac=fraction(set,w.row), wwText=wwTotalText(set,w.row);
+    if(frac==null){results.set(s.row,{state:'blank',status:'Blank',wwText,existing,reason:'The WeBWorK totals file has no total for this student in this set.',action:'Export a fresh totals file that includes this set, or check the student in WeBWorK.'});blank++;return;}
     if(frac>0) credit++;
-    if(frac===0&&!opts.zero){results.set(s.row,{state:'blank',reason:'WeBWorK total is 0 and the zero option is off, left blank'});blank++;return;}
+    if(frac===0&&!opts.zero&&!(existing!==''&&parseFloat(existing)===0)){results.set(s.row,{state:'blank',zeroHeld:true,status:'0 held',wwText,existing,reason:'The student earned no WeBWorK credit in this set, and the option to enter 0 is off.',action:'Turn on the option to enter 0 if the set is past due, or enter 0 by hand in Canvas.'});blank++;return;}
     const score=Math.round(frac*pts*100)/100;
-    if(!opts.overwrite&&existing!==''){results.set(s.row,{state:'kept',score,existing,reason:'Canvas already has '+existing+', kept'});kept++;return;}
+    const exNum=parseFloat(existing), sameAsCanvas=existing!==''&&isFinite(exNum)&&Math.abs(exNum-score)<0.005;
+    if(!opts.overwrite&&existing!==''&&!sameAsCanvas){results.set(s.row,{state:'kept',status:'Existing score kept',score,wwText,existing,reason:'Canvas already has '+existing+' and overwrite is off, so it is kept. WeBWorK would give '+(score===0?'0':score.toFixed(2))+'.',action:'Turn on overwrite if the WeBWorK score should replace it.'});kept++;return;}
     const ex=parseFloat(existing);
-    results.set(s.row,{state:'ok',score,existing,changed:!(existing!==''&&isFinite(ex)&&Math.abs(ex-score)<0.005)});
+    results.set(s.row,{state:'ok',score,existing,wwText,changed:!(existing!==''&&isFinite(ex)&&Math.abs(ex-score)<0.005)});
     filled++; if(score===0) zeros++;
   });
   return {results,filled,noWW,blank,kept,zeros,credit,excused};
+}
+
+function wwTotalText(set,row){
+  if(set.col!=null&&set.value>0){const v=(row[set.col]||'').trim(); return v===''?'':v+' of '+set.value;}
+  if(set.pctCol!=null){const v=(row[set.pctCol]||'').trim(); return v===''?'':v+'%';}
+  return '';
+}
+/* One row per student whose cell was not filled, plus students matched by name */
+function buildReport(canvas,assignments,byName){
+  const iSec=canvas.hdr.findIndex(h=>h.trim().toLowerCase()==='section');
+  const order={'Blank':1,'0 held':2,'Existing score kept':3,'No WeBWorK record':4,'Excused':5,'Matched by name':6};
+  const rows=[];
+  assignments.forEach(a=>{
+    canvas.students.forEach(s=>{
+      const r=a.calc.results.get(s.row);
+      if(!r||!r.status) return;
+      rows.push([a.set.label,r.status,s.name,s.login,iSec>=0?(canvas.rows[s.row][iSec]||''):'',r.reason,r.action,r.wwText||'',r.existing||'']);
+    });
+  });
+  (byName||[]).forEach(n=>{
+    const s=canvas.students.find(x=>x.name===n);
+    rows.push(['All sets','Matched by name',n,s?s.login:'',s&&iSec>=0?(canvas.rows[s.row][iSec]||''):'','The Canvas login was not found in WeBWorK, so the student was matched by full name.','Confirm this is the same student. If not, fix the login in WeBWorK or Canvas.','','']);
+  });
+  rows.sort((x,y)=>String(x[0]).localeCompare(String(y[0]),undefined,{numeric:true})||order[x[1]]-order[y[1]]||x[2].localeCompare(y[2]));
+  return {count:rows.length,csv:'\ufeff'+toCSV([['Set','Status','Student','SIS Login ID','Section','Reason','What to do','WeBWorK total','Current Canvas value'],...rows])};
 }
 
 function buildOutput(canvas,assignments){
@@ -493,7 +550,7 @@ function render(){
   if(!state.canvas||!state.ww){
     $('sets').innerHTML='<p class="empty">'+(state.ww&&!state.canvas?"Add the next section's Canvas export to see the sets.":'Add a Canvas export and a WeBWorK totals file to see the sets.')+'</p>';
     $('preview').innerHTML='<p class="empty">Scores appear here once a set is matched to a column.</p>';
-    $('legend').hidden=true; $('issues').innerHTML=''; $('btnDownload').disabled=true; return;
+    $('legend').hidden=true; $('issues').innerHTML=''; $('btnDownload').disabled=true; $('btnReport').disabled=true; return;
   }
   const link=linkStudents(state.canvas,state.ww);
   const assignments=[], issues=[], used={};
@@ -507,6 +564,7 @@ function render(){
       const pts=parseFloat(colObj.points);
       if(opts.mode==='pts'&&!(pts>0)) issues.push(`${esc(set.label)}: the chosen column ${esc(tidy(colObj.header))} has no points possible in Canvas, so nothing can be written to it`);
       else{
+        if(/upload|written|rubric|quiz|exam|test|activit|practice|participation/i.test(colObj.header)) issues.push(`${esc(set.label)}: the chosen column (${esc(tidy(colObj.header))}) does not look like a WeBWorK homework column. Check that it is the right one.`);
         calc=computeSet(set,colObj,state.canvas,link,opts);
         assignments.push({set,col:colObj,calc}); used[colObj.index]=(used[colObj.index]||0)+1;
         if(opts.mode==='pts'&&set.value>0&&pts!==set.value) issues.push(`${esc(set.label)}: worth ${set.value} in WeBWorK and ${esc(colObj.points)} in Canvas, so scores are scaled to ${esc(colObj.points)} points`);
@@ -558,18 +616,23 @@ function render(){
       p+=`<tr><td class="name">${esc(s.name)}</td>`;
       assignments.forEach(a=>{
         const r=a.calc.results.get(s.row)||{state:'none'};
-        if(r.state==='none') p+='<td class="none">·</td>';
-        else if(r.state==='excused') p+='<td class="none flag" title="Excused in Canvas, EX is kept">EX</td>';
-        else if(r.state==='blank') p+=`<td class="none flag" title="${esc(r.reason)}">blank</td>`;
-        else if(r.state==='kept') p+=`<td class="num flag" title="${esc(r.reason)}">${esc(r.existing)}</td>`;
-        else p+=`<td class="num${r.changed?' bk':''}${r.score===0?' zero':''}"${r.changed?` title="Canvas now has ${esc(r.existing||'nothing')}"`:''}>${r.score===0?'0':r.score.toFixed(2)}</td>`;
+        if(r.state==='none') p+=`<td class="c c-none" title="${esc(r.reason)}">no WW</td>`;
+        else if(r.state==='excused') p+=`<td class="c c-ex" title="${esc(r.reason)}">EX</td>`;
+        else if(r.state==='blank') p+=`<td class="c ${r.zeroHeld?'c-held':'c-blank'}" title="${esc(r.reason)}">${r.zeroHeld?'0 held':'blank'}</td>`;
+        else if(r.state==='kept') p+=`<td class="num c c-kept" title="${esc(r.reason)}">${esc(r.existing)}</td>`;
+        else {
+          const k=r.score===0?'zero':r.changed?'bk':'ok';
+          const t=(r.wwText?'WeBWorK '+r.wwText+'. ':'')+(r.changed?'Canvas now has '+(r.existing||'nothing')+'.':'Same as Canvas.');
+          p+=`<td class="num${k==='ok'?'':' c c-'+k}" title="${esc(t)}">${r.score===0?'0':r.score.toFixed(2)}</td>`;
+        }
       });
       p+='</tr>';
     });
     p+='</tbody></table></div>';
     $('preview').innerHTML=p; $('legend').hidden=false;
   }
-  state.assignments=assignments;
+  state.assignments=assignments; state.byName=link.byName;
+  $('btnReport').disabled=!assignments.length;
   const nothing=!assignments.some(a=>a.calc.filled);
   $('btnDownload').disabled=!assignments.length||conflict||nothing;
   $('dlMsg').textContent=conflict?'Fix the duplicate column choice to enable the download.':'';
@@ -579,6 +642,23 @@ function render(){
 let downloadsP=null;
 try{ if(window.claude&&window.claude.use) downloadsP=window.claude.use('downloads'); }catch(e){}
 
+$('btnReport').addEventListener('click',async()=>{
+  const r=buildReport(state.canvas,state.assignments,state.byName);
+  const msg=$('dlMsg');
+  if(!r.count){ msg.textContent='Nothing to report: every student in the chosen sets was filled.'; msg.className='msg good'; return; }
+  const name=state.canvasName.replace(/\.csv$/i,'')+'_report.csv';
+  let dl=null; try{dl=downloadsP?await downloadsP:null;}catch(e){}
+  const done=` ${r.count} row${r.count===1?'':'s'} to review.`;
+  if(dl){
+    try{await dl.save({filename:name,data:r.csv}); msg.textContent='Saved '+name+'.'+done; msg.className='msg good';}
+    catch(e){ msg.className='msg'+(e&&e.code==='declined'?'':' err'); msg.textContent=e&&e.code==='declined'?'Download cancelled.':'The download could not be completed ('+(e&&e.code||'error')+').'; }
+    return;
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([r.csv],{type:'text/csv'}));
+  a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  msg.textContent='Downloaded '+name+'.'+done; msg.className='msg good';
+});
 $('btnDownload').addEventListener('click',async()=>{
   const csv=buildOutput(state.canvas,state.assignments);
   const name=state.canvasName.replace(/\.csv$/i,'')+'_filled.csv';
