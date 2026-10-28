@@ -15,7 +15,7 @@
   --zero:#98A2B0; --bk:#1F4E8C; --bk-bg:#E6EEF9;
   --c-zero-bg:#FCD9D6; --c-zero:#A3170D; --c-partial-bg:#FFD9C2; --c-partial:#A9390B;
   --c-blank-bg:#FFEFA8; --c-blank:#6E4A00; --c-held-bg:#E7DAFB; --c-held:#5326A0;
-  --c-none-bg:#E3E8EF; --c-none:#4B5664; --c-bk-bg:#CFE0FA; --c-bk:#163F78;
+  --c-none-bg:#E3E8EF; --c-none:#4B5664; --c-norub-bg:#C8EEF0; --c-norub:#0B5C63; --c-bk-bg:#CFE0FA; --c-bk:#163F78;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
@@ -26,7 +26,7 @@
     --flag:#F2C265; --flag-bg:#382C10; --bad:#F59A8F; --bad-bg:#3A1C19; --ok:#6FCF9C; --zero:#6B7888; --bk:#9CC0F0; --bk-bg:#182C45;
     --c-zero-bg:#5A1F1A; --c-zero:#FFB4AB; --c-partial-bg:#5A2C12; --c-partial:#FFB98F;
     --c-blank-bg:#4A3B0C; --c-blank:#FFE07A; --c-held-bg:#3A2A5C; --c-held:#D5BFFF;
-    --c-none-bg:#2A3847; --c-none:#B5C0CD; --c-bk-bg:#1C3A63; --c-bk:#A9CBFF;
+    --c-none-bg:#2A3847; --c-none:#B5C0CD; --c-norub-bg:#123E42; --c-norub:#8EE0E6; --c-bk-bg:#1C3A63; --c-bk:#A9CBFF;
   }
 }
 :root[data-theme="dark"]{
@@ -35,7 +35,7 @@
   --flag:#F2C265; --flag-bg:#382C10; --bad:#F59A8F; --bad-bg:#3A1C19; --ok:#6FCF9C; --zero:#6B7888; --bk:#9CC0F0; --bk-bg:#182C45;
     --c-zero-bg:#5A1F1A; --c-zero:#FFB4AB; --c-partial-bg:#5A2C12; --c-partial:#FFB98F;
     --c-blank-bg:#4A3B0C; --c-blank:#FFE07A; --c-held-bg:#3A2A5C; --c-held:#D5BFFF;
-    --c-none-bg:#2A3847; --c-none:#B5C0CD; --c-bk-bg:#1C3A63; --c-bk:#A9CBFF;
+    --c-none-bg:#2A3847; --c-none:#B5C0CD; --c-norub-bg:#123E42; --c-norub:#8EE0E6; --c-bk-bg:#1C3A63; --c-bk:#A9CBFF;
 }
 *,*::before,*::after{box-sizing:inherit}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -90,7 +90,8 @@ select:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid 
 .c-blank{background:var(--c-blank-bg);color:var(--c-blank)}
 .c-held{background:var(--c-held-bg);color:var(--c-held)}
 .c-none{background:var(--c-none-bg);color:var(--c-none)}
-.preview td.c-partial,.preview td.c-blank,.preview td.c-held,.preview td.c-none{text-align:center;font-size:.8rem}
+.c-norub{background:var(--c-norub-bg);color:var(--c-norub)}
+.preview td.c-partial,.preview td.c-blank,.preview td.c-norub,.preview td.c-held,.preview td.c-none{text-align:center;font-size:.8rem}
 .legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px 18px;margin:12px 0 0;font-size:.84rem;color:var(--ink)}
 .legend h3{grid-column:1/-1;margin:6px 0 0;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
 .legend div{display:flex;align-items:center;gap:10px}
@@ -228,7 +229,7 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
       <summary>How the percentage is calculated</summary>
       <p>Files and columns are paired by section number however they are named (Sec 2.4, Section 1.5, HW 2.4, Part 2, Pt II, Part B). When a section has more than one Canvas column, the WeBWorK or homework grade column is chosen over written work, upload, or rubric columns. Rubric rows are matched to Canvas by the abc123 ID when the export includes one, otherwise by full name, allowing names in a different order or with middle names and initials missing. Names that still cannot be matched are listed for you to pick by hand.</p>
       <p>A student is only scored when every problem has an actual rating (0 or 1) in the rubric file. Blank ratings are never treated as 0, and a rubric that is only partly rated is left blank so nothing is entered in Canvas.</p>
-      <p>If a student has no row at all in the rubric file, or no rubric file is loaded for the set, the student is left blank and flagged under Check before importing. The fix is to have the GTA rate the student's written work on the rubric in SpeedGrader and export the rubric again. Scores typed directly into the Canvas upload column are not used.</p>
+      <p>If a student has no row at all in the rubric file, or no rubric file is loaded for the set, the student is left blank and flagged under Check before importing. Because the Rubric Toolbar exports every student assigned to the Upload assignment, a missing row usually means the student joined after the export, is not assigned the Upload assignment, or the rubric came from a different course or section. Scores typed directly into the Canvas upload column are not used.</p>
       <p>A 0 is entered in Canvas only when it comes from multiplying by a 0 rating in a rubric export: either the rubric zeroed out WeBWorK credit the student earned, or every problem was rated 0. A 0 that would come only from WeBWorK scores of 0 is left blank and shown as "0 held" in the preview. The exception is the optional setting "Enter 0 when written work was graded but WeBWorK shows no credit": when it is checked, a student with a complete rubric rating who earned no WeBWorK points in the set receives a 0.</p>
       <p>For each problem: WeBWorK score (0 to 1) × problem value × rubric points (1 or 0). The products are summed and divided by the total problem value for the set, then multiplied by 100 and rounded to two decimals. Students in Canvas with no WeBWorK record for a set are left untouched.</p>
     </details>
@@ -243,7 +244,8 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
       <div><span class="chip c-zero">0.00</span> A 0 that will be entered in Canvas</div>
       <h3>Not entered, left blank in the file</h3>
       <div><span class="chip c-partial">partial</span> Rubric only partly rated</div>
-      <div><span class="chip c-blank">no rubric</span> No rubric row for the student, so the rubric needs to be filled out</div>
+      <div><span class="chip c-norub">no rubric</span> No row for the student in the rubric export (joined after the export, not assigned the Upload, wrong course, or name not matched)</div>
+      <div><span class="chip c-blank">blank</span> Rubric row present, but nothing rated yet (not graded)</div>
       <div><span class="chip c-held">0 held</span> Would be 0, held back instead of entered</div>
       <div><span class="chip c-none">no WW</span> No WeBWorK record, Canvas cell untouched</div>
       <p class="hint" style="grid-column:1/-1;margin:4px 0 0">Hover over any cell to see the reason. The report button in Download lists every cell that is not entered.</p>
@@ -333,20 +335,24 @@ function parseCanvas(rows){
   const hdr=rows[0]||[];
   const ix=n=>hdr.findIndex(h=>h.trim().toLowerCase()===n);
   const iName=ix('student'), iLogin=ix('sis login id'), iId=ix('id');
-  if(iName<0||iLogin<0) throw new Error('This does not look like a Canvas gradebook export (no Student or SIS Login ID column).');
+  const iLast=ix('lastname')>=0?ix('lastname'):ix('last name'), iFirst=ix('firstname')>=0?ix('firstname'):ix('first name');
+  if((iName<0&&iLast<0)||iLogin<0) throw new Error('This does not look like a Canvas gradebook export (no Student or SIS Login ID column).');
+  /* Exports with separate LastName and FirstName columns are read as "Last, First" */
+  const nameOf=row=>iName>=0?(row[iName]||''):((row[iLast]||'').trim()+((row[iFirst]||'').trim()?', '+(row[iFirst]||'').trim():''));
   let pp=rows.findIndex(r=>(r[0]||'').trim().toLowerCase()==='points possible');
   const start = pp>=0 ? pp+1 : 1;
   const students=[];
   for(let r=start;r<rows.length;r++){
-    const row=rows[r]; if(!row||!row[iName]) continue;
-    const [last,first]=row[iName].split(/,\s*/);
-    const display=first?first+' '+last:row[iName];
-    if(isTestStudent(row[iName])) continue;
-    students.push({row:r,name:row[iName],login:(row[iLogin]||'').trim(),canvasId:iId>=0?(row[iId]||'').trim():'',display,norm:normName(display),tokens:nameTokens(display)});
+    const row=rows[r]; if(!row) continue;
+    const nm=nameOf(row); if(!nm||/^,/.test(nm)) continue;
+    const [last,first]=nm.split(/,\s*/);
+    const display=first?first+' '+last:nm;
+    if(isTestStudent(nm)) continue;
+    students.push({row:r,name:nm,login:(row[iLogin]||'').trim(),canvasId:iId>=0?(row[iId]||'').trim():'',display,norm:normName(display),tokens:nameTokens(display)});
   }
   const columns=[];
   hdr.forEach((h,c)=>{
-    if(c<=3) return;
+    if(['student','lastname','firstname','last name','first name','id','sis user id','sis login id','integration id','root account','section'].includes(h.trim().toLowerCase())) return;
     const p=pp>=0?(rows[pp][c]||'').trim():'';
     if(/read only/i.test(p)) return;
     if(/(current|final) score$/i.test(h)) return;
@@ -489,8 +495,8 @@ function computeSet(ww,rb,canvas,opts){
     }
     noRubric++;
     results.set(s.row,{...info,state:'blank',noRubricRow:true,status:'No rubric',
-      reason:!rb?'No rubric export is loaded for this set.':'The student has no row in the rubric export, so the written work has not been rated on the rubric.',
-      action:!rb?'Export the rubric scores for the Upload assignment and load the file.':"Have the GTA rate this student's written work on the rubric in SpeedGrader, then export the rubric again. If the student was already rated, check the name match."});
+      reason:!rb?'No rubric export is loaded for this set.':'The student has no row in the rubric export. The Rubric Toolbar exports every student assigned to the Upload assignment, graded or not, so the student may have joined the course after the export, may not be assigned the Upload assignment, or the rubric may be from a different course or section.',
+      action:!rb?'Export the rubric scores for the Upload assignment and load the file.':"Export the rubric again from this course's Upload assignment and reload it. If the student appears in the unmatched names list, match the name by hand. If the student is not assigned the Upload assignment, check its Assign To settings in Canvas."});
   });
   const mismatch = rb ? ww.problems.map(p=>p.num).filter(n=>!rb.questions.includes(n)) : [];
   return {results,filled,noRubric,noWW,heldZero,wwZeros,unmatched:link.unmatched,guesses:link.guesses,mismatch,rubricName:rb?rb.filename:''};
@@ -561,7 +567,7 @@ function setStatus(id,text,err){const el=$(id);el.textContent=text;el.classList.
 /* Every file is identified by its contents, so a file dropped in the wrong box still lands in the right place */
 function detectType(rows){
   const h0=(rows[0]||[]).map(x=>x.trim().toLowerCase());
-  if(h0.includes('student')&&h0.includes('sis login id')) return 'canvas';
+  if((h0.includes('student')||h0.includes('lastname')||h0.includes('last name'))&&h0.includes('sis login id')) return 'canvas';
   if(rows.some(r=>(r[0]||'').trim().toUpperCase()==='PROB NUMBER')) return 'webwork';
   if(h0.includes('student name')&&h0.some(x=>/^points:/.test(x))) return 'rubric';
   return null;
@@ -680,7 +686,7 @@ function render(){
     if(col>=0&&!rb) issues.push(`${esc(w.label)}: no rubric export is loaded for this set, so every student is left blank. Export the rubric scores for the Upload assignment and load the file.`);
     else if(col>=0){
       const noRow=[...calc.results.values()].filter(r=>r.noRubricRow).length;
-      if(noRow) issues.push(`${esc(w.label)}: ${noRow} student${noRow===1?' has':'s have'} no rubric row, so ${noRow===1?'that student is':'they are'} left blank. Have the GTA rate ${noRow===1?'that student':'them'} on the rubric in SpeedGrader, then export the rubric again.`);
+      if(noRow) issues.push(`${esc(w.label)}: ${noRow} student${noRow===1?' has':'s have'} no rubric row, so ${noRow===1?'that student is':'they are'} left blank. Export the rubric again from this course's Upload assignment, and check that ${noRow===1?'the student is':'they are'} assigned the Upload assignment and not in the unmatched names list.`);
     }
     if(rb&&calc.mismatch.length) issues.push(`${esc(w.label)}: WeBWorK problems ${calc.mismatch.join(', ')} have no rubric column, so they earn 0`);
     if(colObj&&colObj.written) issues.push(`${esc(w.label)}: the chosen column (${esc(tidy(colObj.header))}) looks like the written or upload assignment, not the WeBWorK HW grade`);
@@ -724,8 +730,8 @@ function render(){
       assignments.forEach(a=>{
         const r=a.calc.results.get(s.row)||{state:'none'};
         if(r.state==='blank'){
-          const k=r.zeroHeld?'held':r.partial?'partial':'blank';
-          p+=`<td class="c c-${k}" title="${esc(r.reason)}">${k==='held'?'0 held':r.noRubricRow?'no rubric':k}</td>`;
+          const k=r.zeroHeld?'held':r.partial?'partial':r.noRubricRow?'norub':'blank';
+          p+=`<td class="c c-${k}" title="${esc(r.reason)}">${k==='held'?'0 held':k==='norub'?'no rubric':k}</td>`;
         }
         else if(r.state==='none') p+=`<td class="c c-none" title="${esc(r.reason||'No WeBWorK record')}">no WW</td>`;
         else if(r.pct==null) p+=`<td></td>`;
