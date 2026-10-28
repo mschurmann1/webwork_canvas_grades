@@ -222,14 +222,14 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
       <label><input type="checkbox" id="optOverwrite" checked> Overwrite scores already in the chosen column</label>
       <label><input type="checkbox" id="optWWZero"> Enter 0 when written work was graded but WeBWorK shows no credit</label>
     </div>
-    <p class="optnote"><strong>About the 0 option (off by default):</strong> Some students upload written work but earn no points in WeBWorK for the set. When this option is off, those students are left blank and shown as "0 held" in the preview, so nothing is entered in Canvas. When it is on, they receive a 0, as long as their written work has a rubric rating for every problem or a score in the Canvas backup column. Students with no written work score at all are still left blank either way.</p>
+    <p class="optnote"><strong>About the 0 option (off by default):</strong> Some students upload written work but earn no points in WeBWorK for the set. When this option is off, those students are left blank and shown as "0 held" in the preview, so nothing is entered in Canvas. When it is on, they receive a 0, as long as their written work has a rubric rating for every problem. Students with no rubric row are still left blank either way.</p>
     <div id="issues"></div>
     <details class="formula">
       <summary>How the percentage is calculated</summary>
       <p>Files and columns are paired by section number however they are named (Sec 2.4, Section 1.5, HW 2.4, Part 2, Pt II, Part B). When a section has more than one Canvas column, the WeBWorK or homework grade column is chosen over written work, upload, or rubric columns. Rubric rows are matched to Canvas by the abc123 ID when the export includes one, otherwise by full name, allowing names in a different order or with middle names and initials missing. Names that still cannot be matched are listed for you to pick by hand.</p>
-      <p>A student is only scored when every problem has an actual rating (0 or 1) in the rubric file. Blank ratings are never treated as 0: if the Canvas backup column has no score either, the student's cell is left blank so nothing is entered in Canvas. A rubric that is only partly rated is also left blank.</p>
-      <p>If a student has no row at all in the rubric file (or no rubric file is loaded for the set), the Canvas backup column is used instead: the student's WeBWorK percentage times their written or upload score divided by that column's points possible. For example, 90% in WeBWorK with 3 of 4 on the upload gives 67.50.</p>
-      <p>A 0 is entered in Canvas only when it comes from multiplying by a 0 rating in a rubric export: either the rubric zeroed out WeBWorK credit the student earned, or every problem was rated 0. A 0 that would come only from WeBWorK scores of 0, or from the Canvas backup column, is left blank and shown as "0 held" in the preview. The exception is the optional setting "Enter 0 when written work was graded but WeBWorK shows no credit": when it is checked, a student with a complete rubric rating or a backup score who earned no WeBWorK points in the set receives a 0.</p>
+      <p>A student is only scored when every problem has an actual rating (0 or 1) in the rubric file. Blank ratings are never treated as 0, and a rubric that is only partly rated is left blank so nothing is entered in Canvas.</p>
+      <p>If a student has no row at all in the rubric file, or no rubric file is loaded for the set, the student is left blank and flagged under Check before importing. The fix is to have the GTA rate the student's written work on the rubric in SpeedGrader and export the rubric again. Scores typed directly into the Canvas upload column are not used.</p>
+      <p>A 0 is entered in Canvas only when it comes from multiplying by a 0 rating in a rubric export: either the rubric zeroed out WeBWorK credit the student earned, or every problem was rated 0. A 0 that would come only from WeBWorK scores of 0 is left blank and shown as "0 held" in the preview. The exception is the optional setting "Enter 0 when written work was graded but WeBWorK shows no credit": when it is checked, a student with a complete rubric rating who earned no WeBWorK points in the set receives a 0.</p>
       <p>For each problem: WeBWorK score (0 to 1) × problem value × rubric points (1 or 0). The products are summed and divided by the total problem value for the set, then multiplied by 100 and rounded to two decimals. Students in Canvas with no WeBWorK record for a set are left untouched.</p>
     </details>
   </section>
@@ -240,11 +240,10 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
     <div class="legend" id="legend" hidden>
       <h3>Entered in Canvas</h3>
       <div><span class="chip c-ok">85.00</span> Percentage from the rubric export</div>
-      <div><span class="chip c-bk">67.50</span> Percentage from the Canvas written or upload column (no rubric row)</div>
       <div><span class="chip c-zero">0.00</span> A 0 that will be entered in Canvas</div>
       <h3>Not entered, left blank in the file</h3>
       <div><span class="chip c-partial">partial</span> Rubric only partly rated</div>
-      <div><span class="chip c-blank">blank</span> No rubric rating or upload score yet</div>
+      <div><span class="chip c-blank">no rubric</span> No rubric row for the student, so the rubric needs to be filled out</div>
       <div><span class="chip c-held">0 held</span> Would be 0, held back instead of entered</div>
       <div><span class="chip c-none">no WW</span> No WeBWorK record, Canvas cell untouched</div>
       <p class="hint" style="grid-column:1/-1;margin:4px 0 0">Hover over any cell to see the reason. The report button in Download lists every cell that is not entered.</p>
@@ -438,13 +437,10 @@ function linkRubric(rb,canvas,ww,manual){
   return {map,unmatched,guesses};
 }
 
-/* backup = {index, points}: the Canvas Written/Upload column for this section.
-   Per student: rubric ratings if present; otherwise WeBWorK % × (Canvas score / points possible). */
-function computeSet(ww,rb,canvas,opts,backup){
+/* Per student: a grade is calculated only from a fully rated rubric row. */
+function computeSet(ww,rb,canvas,opts){
   const link=rb?linkRubric(rb,canvas,ww,opts.manual):{map:new Map(),unmatched:[],guesses:[]};
-  const bkPts=backup?parseFloat(backup.points):NaN;
-  const useBk=!!backup&&isFinite(bkPts)&&bkPts>0;
-  const results=new Map(); let filled=0, noRubric=0, noWW=0, fromBackup=0, heldZero=0, wwZeros=0;
+  const results=new Map(); let filled=0, noRubric=0, noWW=0, heldZero=0, wwZeros=0;
   canvas.students.forEach(s=>{
     const login=s.login.toLowerCase();
     const w=ww.students.get(login);
@@ -472,7 +468,6 @@ function computeSet(ww,rb,canvas,opts,backup){
     const ratings=r?covered.map(p=>'P'+p.num+': '+(isFinite(r.pts[p.num])?r.pts[p.num]:'blank')).join(', '):'';
     const missing=r?covered.filter(p=>!isFinite(r.pts[p.num])).map(p=>p.num):[];
     const info={wwPct,ratings};
-    const bkCell=useBk?((canvas.rows[s.row]||[])[backup.index]||'').trim():'';
     if(hasRubric){
       const pct=Math.round(earned/T*10000)/100;
       if(pct===0&&!(zeroedByRubric>0||allRubricZero)){
@@ -492,48 +487,30 @@ function computeSet(ww,rb,canvas,opts,backup){
         action:partial?'Finish rating problem'+(missing.length===1?' ':'s ')+missing.join(', ')+' in SpeedGrader, then export the rubric again.':"Rate this student's written work in SpeedGrader, then export the rubric again."});
       return;
     }
-    if(useBk){
-      const cell=((canvas.rows[s.row]||[])[backup.index]||'').trim();
-      const v=parseFloat(cell);
-      if(cell!==''&&isFinite(v)){
-        const frac=Math.max(0,Math.min(1,v/bkPts));
-        const pct=Math.round(raw/T*frac*10000)/100;
-        if(pct===0){
-          if(opts.wwZero&&raw===0){ results.set(s.row,{state:'backup',pct:0,wwZero:true,detail:cell+' of '+backup.points,reason:'Upload score '+cell+' of '+backup.points+', but no WeBWorK credit in the set, 0 entered (optional setting)'}); fromBackup++; filled++; wwZeros++; return; }
-          heldZero++;
-          results.set(s.row,{...info,state:'blank',zeroHeld:true,status:'0 held',backupScore:cell+' of '+backup.points,
-            reason:raw===0?'No rubric row, so the backup upload score ('+cell+' of '+backup.points+') was used, but the student earned no WeBWorK credit in the set, so the grade would be 0.':'No rubric row, so the backup upload score was used, and it is '+cell+' of '+backup.points+', so the grade would be 0.',
-            action:raw===0?'Enter 0 by hand in Canvas if intended, or turn on the option to enter 0 when WeBWorK shows no credit.':'Check the upload score. Enter 0 by hand in Canvas if intended.'});
-          return;
-        }
-        results.set(s.row,{...info,state:'backup',pct,detail:cell+' of '+backup.points});
-        fromBackup++; filled++; return;
-      }
-    }
     noRubric++;
-    results.set(s.row,{...info,state:'blank',partial,status:'Blank',
-      reason:(!rb?'No rubric export is loaded for this set':'The student has no row in the rubric export')+(useBk?', and the backup column has no upload score.':', and no backup column is chosen.'),
-      action:rb?'Check whether the student submitted written work. If it was graded, check the name match or export the rubric again.':'Load the rubric export for this set, or choose a backup column.'});
+    results.set(s.row,{...info,state:'blank',noRubricRow:true,status:'No rubric',
+      reason:!rb?'No rubric export is loaded for this set.':'The student has no row in the rubric export, so the written work has not been rated on the rubric.',
+      action:!rb?'Export the rubric scores for the Upload assignment and load the file.':"Have the GTA rate this student's written work on the rubric in SpeedGrader, then export the rubric again. If the student was already rated, check the name match."});
   });
   const mismatch = rb ? ww.problems.map(p=>p.num).filter(n=>!rb.questions.includes(n)) : [];
-  return {results,filled,noRubric,noWW,fromBackup,heldZero,wwZeros,unmatched:link.unmatched,guesses:link.guesses,mismatch,rubricName:rb?rb.filename:''};
+  return {results,filled,noRubric,noWW,heldZero,wwZeros,unmatched:link.unmatched,guesses:link.guesses,mismatch,rubricName:rb?rb.filename:''};
 }
 
 /* One row per student who was not filled, plus rubric names that could not be matched */
 function buildReport(canvas,assignments){
   const iSec=canvas.hdr.findIndex(h=>h.trim().toLowerCase()==='section');
-  const order={'Partial':1,'Blank':2,'0 held':3,'No WeBWorK record':4,'Unmatched rubric name':5};
+  const order={'Partial':1,'No rubric':2,'Blank':2,'0 held':3,'No WeBWorK record':4,'Unmatched rubric name':5};
   const rows=[];
   assignments.forEach(a=>{
     canvas.students.forEach(s=>{
       const r=a.calc.results.get(s.row);
       if(!r||!r.status) return;
-      rows.push([a.w.label,r.status,s.name,s.login,iSec>=0?(canvas.rows[s.row][iSec]||''):'',r.reason,r.action,r.wwPct!=null?r.wwPct.toFixed(2):'',r.ratings||'',r.backupScore||'']);
+      rows.push([a.w.label,r.status,s.name,s.login,iSec>=0?(canvas.rows[s.row][iSec]||''):'',r.reason,r.action,r.wwPct!=null?r.wwPct.toFixed(2):'',r.ratings||'']);
     });
     a.calc.unmatched.forEach(u=>rows.push([a.w.label,'Unmatched rubric name',u.name,'','','This name in '+a.calc.rubricName+' could not be matched to a Canvas student, so the rubric ratings for it are not used.','Pick the student by hand in the unmatched names list on the page, then download again.','','','']));
   });
   rows.sort((x,y)=>String(x[0]).localeCompare(String(y[0]),undefined,{numeric:true})||order[x[1]]-order[y[1]]||x[2].localeCompare(y[2]));
-  return {count:rows.length,csv:'\ufeff'+toCSV([['Set','Status','Student','SIS Login ID','Section','Reason','What to do','WeBWorK %','Rubric ratings','Backup upload score'],...rows])};
+  return {count:rows.length,csv:'\ufeff'+toCSV([['Set','Status','Student','SIS Login ID','Section','Reason','What to do','WeBWorK %','Rubric ratings'],...rows])};
 }
 
 function buildOutput(canvas,assignments,opts){
@@ -665,19 +642,13 @@ function render(){
     $('legend').hidden=true; $('issues').innerHTML=''; $('btnDownload').disabled=true; $('btnReport').disabled=true; return;
   }
   const assignments=[], issues=[], used={}, unmatchedAll=new Map(), guessesAll=new Map();
-  let html='<div class="tablewrap"><table><thead><tr><th>Set</th><th>Problems</th><th>Rubric file (per problem)</th><th>Canvas backup (written or upload score)</th><th>WeBWorK HW grade column (output)</th><th>Result</th></tr></thead><tbody>';
+  let html='<div class="tablewrap"><table><thead><tr><th>Set</th><th>Problems</th><th>Rubric file (per problem)</th><th>WeBWorK HW grade column (output)</th><th>Result</th></tr></thead><tbody>';
   state.ww.forEach((w,i)=>{
     const ck='col:'+w.id;
     if(state.choice[ck]===undefined) state.choice[ck]=defaultColumn(w);
     const col=state.choice[ck];
     const rb=rubricFor(w);
-    const bk='bk:'+w.id;
-    if(state.choice[bk]===undefined){
-      const c=w.key?state.canvas.columns.filter(c=>c.key===w.key&&c.written)[0]:null;
-      state.choice[bk]=c?c.index:-1;
-    }
-    const bkCol=state.canvas.columns.find(c=>c.index===state.choice[bk])||null;
-    const calc=computeSet(w,rb,state.canvas,opts,bkCol?{index:bkCol.index,points:bkCol.points}:null);
+    const calc=computeSet(w,rb,state.canvas,opts);
     const colObj=state.canvas.columns.find(c=>c.index===col);
     if(col>=0){assignments.push({w,col,calc,colObj}); used[col]=(used[col]||0)+1;}
     const rbOpts=['<option value="">None</option>'].concat(state.rb.map(r=>`<option value="${esc(r.filename)}"${rb&&rb.filename===r.filename?' selected':''}>${esc(r.filename)}</option>`)).join('');
@@ -689,19 +660,11 @@ function render(){
       +(same.length?`<optgroup label="WeBWorK grade columns for ${esc(w.label)}">${same.map(o).join('')}</optgroup>`:'')
       +`<optgroup label="Other grade columns">${other.map(o).join('')}</optgroup>`
       +(written.length?`<optgroup label="Written, upload, or rubric columns (not recommended)">${written.map(o).join('')}</optgroup>`:'');
-    const ob=c=>`<option value="${c.index}"${bkCol&&c.index===bkCol.index?' selected':''}>${esc(tidy(c.header))}${c.points?' ('+esc(c.points)+' pts)':''}</option>`;
-    const wSame=state.canvas.columns.filter(c=>w.key&&c.key===w.key&&c.written);
-    const bkOpts='<option value="-1">None</option>'
-      +(wSame.length?`<optgroup label="Written or upload columns for ${esc(w.label)}">${wSame.map(ob).join('')}</optgroup>`:'')
-      +`<optgroup label="All other columns">${state.canvas.columns.filter(c=>!wSame.includes(c)).map(ob).join('')}</optgroup>`;
-    if(bkCol&&!(parseFloat(bkCol.points)>0)) issues.push(`${esc(w.label)}: the backup column ${esc(tidy(bkCol.header))} has no points possible in Canvas, so it cannot be used`);
-    if(bkCol&&col===bkCol.index) issues.push(`${esc(w.label)}: the backup column and the output column are the same`);
     let res='';
     if(col<0) res='<span class="pill">Not filled</span>';
     else{
       res=`<span class="pill ok">${calc.filled} students</span>`;
-      if(!rb&&!bkCol) res+=' <span class="pill bad">No rubric or backup</span>';
-      if(calc.fromBackup) res+=` <span class="pill backup">${calc.fromBackup} from Canvas column</span>`;
+      if(!rb) res+=' <span class="pill bad">No rubric export loaded</span>';
       if(calc.noRubric) res+=` <span class="pill flag">${calc.noRubric} left blank</span>`;
       if(calc.wwZeros) res+=` <span class="pill">${calc.wwZeros} zero${calc.wwZeros===1?'':'s'}, no WeBWorK credit</span>`;
       if(calc.heldZero) res+=` <span class="pill flag">${calc.heldZero} zero${calc.heldZero===1?'':'s'} not from rubric, left blank</span>`;
@@ -710,11 +673,15 @@ function render(){
     html+=`<tr><td><strong>${esc(w.label)}</strong><div style="color:var(--muted);font-size:.78rem">${esc(w.setName||w.filename)}</div></td>
       <td>${w.problems.length} (worth ${w.totalValue})</td>
       <td><select data-rb="${esc(w.id)}" aria-label="Rubric file for ${esc(w.label)}">${rbOpts}</select></td>
-      <td><select data-bk="${esc(w.id)}" aria-label="Canvas backup column for ${esc(w.label)}">${bkOpts}</select></td>
       <td><select data-col="${esc(w.id)}" aria-label="Canvas column for ${esc(w.label)}">${colOpts}</select></td>
       <td>${res}</td></tr>`;
     calc.unmatched.forEach(u=>{const e=unmatchedAll.get(u.norm)||{name:u.name,sets:[]};e.sets.push(w.label);unmatchedAll.set(u.norm,e);});
     calc.guesses.forEach(g=>{const k=g.name+'|'+g.to;const e=guessesAll.get(k)||{...g,sets:[]};e.sets.push(w.label);guessesAll.set(k,e);});
+    if(col>=0&&!rb) issues.push(`${esc(w.label)}: no rubric export is loaded for this set, so every student is left blank. Export the rubric scores for the Upload assignment and load the file.`);
+    else if(col>=0){
+      const noRow=[...calc.results.values()].filter(r=>r.noRubricRow).length;
+      if(noRow) issues.push(`${esc(w.label)}: ${noRow} student${noRow===1?' has':'s have'} no rubric row, so ${noRow===1?'that student is':'they are'} left blank. Have the GTA rate ${noRow===1?'that student':'them'} on the rubric in SpeedGrader, then export the rubric again.`);
+    }
     if(rb&&calc.mismatch.length) issues.push(`${esc(w.label)}: WeBWorK problems ${calc.mismatch.join(', ')} have no rubric column, so they earn 0`);
     if(colObj&&colObj.written) issues.push(`${esc(w.label)}: the chosen column (${esc(tidy(colObj.header))}) looks like the written or upload assignment, not the WeBWorK HW grade`);
     if(colObj&&colObj.points&&parseFloat(colObj.points)!==100) issues.push(`${esc(w.label)}: the chosen column is worth ${esc(colObj.points)} points, but a percentage out of 100 will be written`);
@@ -745,7 +712,6 @@ function render(){
     if(ws&&ws.key){ if(c) remembered[ws.key]=c.header; else delete remembered[ws.key]; }
     save('ww2canvas.choices',remembered); render();
   }));
-  document.querySelectorAll('select[data-bk]').forEach(s=>s.addEventListener('change',()=>{state.choice['bk:'+s.dataset.bk]=+s.value;render();}));
   document.querySelectorAll('select[data-rb]').forEach(s=>s.addEventListener('change',()=>{state.choice['rb:'+s.dataset.rb]=s.value;render();}));
 
   if(!assignments.length){
@@ -759,7 +725,7 @@ function render(){
         const r=a.calc.results.get(s.row)||{state:'none'};
         if(r.state==='blank'){
           const k=r.zeroHeld?'held':r.partial?'partial':'blank';
-          p+=`<td class="c c-${k}" title="${esc(r.reason)}">${k==='held'?'0 held':k}</td>`;
+          p+=`<td class="c c-${k}" title="${esc(r.reason)}">${k==='held'?'0 held':r.noRubricRow?'no rubric':k}</td>`;
         }
         else if(r.state==='none') p+=`<td class="c c-none" title="${esc(r.reason||'No WeBWorK record')}">no WW</td>`;
         else if(r.pct==null) p+=`<td></td>`;
