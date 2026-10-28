@@ -46,6 +46,13 @@ h1{font-size:1.9rem;line-height:1.2;margin:0 0 8px;color:var(--navy);font-weight
 .choice .go{margin-top:auto;align-self:flex-start;font-weight:600;padding:10px 18px;border-radius:8px;background:var(--orange);color:#fff}
 .note{margin:22px 0 0;font-size:.88rem;color:var(--muted)}
 .note a{color:var(--orange);font-weight:600}
+.privacy{margin:0 0 26px;padding:16px 20px;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--ok);border-radius:10px;max-width:980px}
+.privacy h2{margin:0 0 6px;font-size:1.05rem;color:var(--navy)}
+.privacy p{margin:0;font-size:.92rem}
+.privacy details{margin-top:10px;font-size:.9rem}
+.privacy summary{cursor:pointer;font-weight:600;color:var(--orange)}
+.privacy ul{margin:8px 0 0;padding-left:20px}
+.privacy li{margin:5px 0}
 @media (max-width:600px){main{padding:28px 14px 48px} h1{font-size:1.5rem}}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
@@ -53,7 +60,21 @@ h1{font-size:1.9rem;line-height:1.2;margin:0 0 8px;color:var(--navy);font-weight
 <body>
 <main>
   <h1>WeBWorK to Canvas homework grades</h1>
-  <p class="lede">Choose the export that matches how your course grades homework. Files are read in your browser and never uploaded anywhere.</p>
+  <p class="lede">Choose the export that matches how your course grades homework.</p>
+  <section class="privacy" aria-labelledby="privTitle">
+    <h2 id="privTitle"><span aria-hidden="true">🔒</span> Student data stays on your computer</h2>
+    <p>These tools run entirely in your web browser. Your Canvas, rubric and WeBWorK files are never uploaded, and no student data is sent to or stored on a server, including GitHub.</p>
+    <details>
+      <summary>How it works</summary>
+      <ul>
+        <li><strong>The website only delivers the page.</strong> GitHub Pages sends this page to your browser. After that, your files are read and processed on your own computer.</li>
+        <li><strong>Nothing is sent anywhere.</strong> The pages contain no code that sends data to GitHub or any other service. The only outside request loads the page font from Google Fonts, and it carries no student information.</li>
+        <li><strong>Results are saved to your computer.</strong> The Canvas import file and the report are created in your browser and saved to your Downloads folder.</li>
+        <li><strong>The Rubric Toolbar works inside Canvas.</strong> It reads rubric ratings through Canvas with your own Canvas login and saves the export to your computer.</li>
+        <li><strong>Downloaded files are student records.</strong> Handle them like any gradebook export: keep them on university devices and delete them when no longer needed.</li>
+      </ul>
+    </details>
+  </section>
   <div class="choices">
     <a class="choice" href="written-work.html">
       <h2>WeBWorK Written Work Export</h2>
