@@ -244,7 +244,7 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
       <div><span class="chip c-zero">0.00</span> A 0 that will be entered in Canvas</div>
       <h3>Not entered, left blank in the file</h3>
       <div><span class="chip c-partial">partial</span> Rubric only partly rated</div>
-      <div><span class="chip c-norub">no rubric</span> No row for the student in the rubric export (joined after the export, not assigned the Upload, wrong course, or name not matched)</div>
+      <div><span class="chip c-norub">no rubric</span> No row for the student in the rubric export (joined after the export, not assigned the Upload, or wrong course)</div>
       <div><span class="chip c-blank">blank</span> Rubric row present, but nothing rated yet (not graded)</div>
       <div><span class="chip c-held">0 held</span> Would be 0, held back instead of entered</div>
       <div><span class="chip c-none">no WW</span> No WeBWorK record, Canvas cell untouched</div>
@@ -496,7 +496,7 @@ function computeSet(ww,rb,canvas,opts){
     noRubric++;
     results.set(s.row,{...info,state:'blank',noRubricRow:true,status:'No rubric',
       reason:!rb?'No rubric export is loaded for this set.':'The student has no row in the rubric export. The Rubric Toolbar exports every student assigned to the Upload assignment, graded or not, so the student may have joined the course after the export, may not be assigned the Upload assignment, or the rubric may be from a different course or section.',
-      action:!rb?'Export the rubric scores for the Upload assignment and load the file.':"Export the rubric again from this course's Upload assignment and reload it. If the student appears in the unmatched names list, match the name by hand. If the student is not assigned the Upload assignment, check its Assign To settings in Canvas."});
+      action:!rb?'Export the rubric scores for the Upload assignment and load the file.':"Export the rubric again from this course's Upload assignment and reload it. If the student is not assigned the Upload assignment, check its Assign To settings in Canvas."});
   });
   const mismatch = rb ? ww.problems.map(p=>p.num).filter(n=>!rb.questions.includes(n)) : [];
   return {results,filled,noRubric,noWW,heldZero,wwZeros,unmatched:link.unmatched,guesses:link.guesses,mismatch,rubricName:rb?rb.filename:''};
@@ -686,7 +686,7 @@ function render(){
     if(col>=0&&!rb) issues.push(`${esc(w.label)}: no rubric export is loaded for this set, so every student is left blank. Export the rubric scores for the Upload assignment and load the file.`);
     else if(col>=0){
       const noRow=[...calc.results.values()].filter(r=>r.noRubricRow).length;
-      if(noRow) issues.push(`${esc(w.label)}: ${noRow} student${noRow===1?' has':'s have'} no rubric row, so ${noRow===1?'that student is':'they are'} left blank. Export the rubric again from this course's Upload assignment, and check that ${noRow===1?'the student is':'they are'} assigned the Upload assignment and not in the unmatched names list.`);
+      if(noRow) issues.push(`${esc(w.label)}: ${noRow} student${noRow===1?' has':'s have'} no rubric row, so ${noRow===1?'that student is':'they are'} left blank. Export the rubric again from this course's Upload assignment, and check that ${noRow===1?'the student is':'they are'} assigned the Upload assignment.`);
     }
     if(rb&&calc.mismatch.length) issues.push(`${esc(w.label)}: WeBWorK problems ${calc.mismatch.join(', ')} have no rubric column, so they earn 0`);
     if(colObj&&colObj.written) issues.push(`${esc(w.label)}: the chosen column (${esc(tidy(colObj.header))}) looks like the written or upload assignment, not the WeBWorK HW grade`);
