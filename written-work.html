@@ -137,6 +137,15 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
 .crumb a{color:var(--orange);font-weight:600;text-decoration:none}
 .crumb a:hover{text-decoration:underline}
 [hidden]{display:none!important}
+.tas{margin:16px 0 0;padding:14px 16px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.tas .tahead{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+.tas select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);max-width:100%}
+.tas .hint{margin:6px 0 0}
+#taList{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.tachip{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:.86rem;font-weight:600}
+.tachip .talogin{font-weight:400;color:var(--muted)}
+.tachip button{border:0;background:none;color:var(--muted);font-size:1rem;cursor:pointer;line-height:1;padding:0 4px}
+.tachip button:hover{color:var(--bad)}
 </style>
 </head>
 <body>
@@ -212,6 +221,14 @@ details.formula summary{cursor:pointer;color:var(--ink);font-weight:500}
         <input type="file" accept=".csv,text/csv" multiple id="inWW" aria-label="WeBWorK scoring files">
         <div class="status" id="stWW"></div>
       </div>
+    </div>
+    <div class="tas" id="taPanel" hidden>
+      <div class="tahead">
+        <strong>Embedded Math Gym TAs</strong>
+        <select id="taPick" aria-label="Mark a student as an embedded Math Gym TA"></select>
+      </div>
+      <p class="hint">Embedded TAs are listed as students in Canvas. Marking them here skips them: their Canvas cells are left untouched, and they do not appear in the preview, the warnings or the report. Your choices are remembered in this browser (by abc123 login only) and apply on both export pages.</p>
+      <div id="taList"></div>
     </div>
   </section>
 
@@ -438,7 +455,7 @@ function linkRubric(rb,canvas,ww,manual){
     if(c){
       map.set(c.login,s);
       if(how==='loose') guesses.push({name:s.name,to:c.display});
-    } else unmatched.push({name:s.name,norm:s.norm});
+    } else if(!s.ids.some(id=>isTA(id))) unmatched.push({name:s.name,norm:s.norm}); /* a marked TA's rubric row is ignored */
   });
   return {map,unmatched,guesses};
 }
@@ -539,6 +556,32 @@ function buildOutput(canvas,assignments,opts){
 /* ===== UI ===== */
 const state={canvas:null,canvasName:'',ww:[],rb:[],choice:{}};
 const $=id=>document.getElementById(id);
+/* ===== Embedded Math Gym TAs: remembered by abc123 login in this browser, shared by both export pages ===== */
+const TA_KEY='mathgym.tas';
+function taLogins(){ try{ const v=JSON.parse(localStorage.getItem(TA_KEY)||'[]'); return new Set(Array.isArray(v)?v.map(x=>String(x).toLowerCase()):[]); }catch(e){ return new Set(); } }
+function saveTAs(set){ try{ localStorage.setItem(TA_KEY,JSON.stringify([...set])); }catch(e){} }
+function isTA(login){ return !!login&&taLogins().has(String(login).toLowerCase()); }
+/* Keeps the full roster in canvas.all and shows every other part of the page only the non TA students */
+function applyTAs(){
+  if(!state.canvas) return;
+  if(!state.canvas.all) state.canvas.all=state.canvas.students.slice();
+  const tas=taLogins();
+  state.canvas.students=state.canvas.all.filter(s=>!tas.has(String(s.login||'').toLowerCase()));
+  state.canvas.taCount=state.canvas.all.length-state.canvas.students.length;
+}
+function renderTAs(){
+  const panel=$('taPanel'); if(!panel) return;
+  if(!state.canvas){ panel.hidden=true; return; }
+  panel.hidden=false;
+  const tas=taLogins();
+  const marked=state.canvas.all.filter(s=>s.login&&tas.has(String(s.login).toLowerCase()));
+  const others=state.canvas.all.filter(s=>s.login&&!tas.has(String(s.login).toLowerCase())).sort((a,b)=>a.name.localeCompare(b.name));
+  $('taPick').innerHTML='<option value="">Mark a student as an embedded TA…</option>'+others.map(s=>`<option value="${esc(s.login)}">${esc(s.name)} (${esc(s.login)})</option>`).join('');
+  $('taList').innerHTML=marked.length?marked.map(s=>`<span class="tachip">${esc(s.name)} <span class="talogin">${esc(s.login)}</span><button type="button" data-untag="${esc(s.login)}" aria-label="Remove ${esc(s.name)} as a TA">×</button></span>`).join(''):'<span class="hint" style="margin:0">No TAs marked in this export.</span>';
+  document.querySelectorAll('[data-untag]').forEach(b=>b.addEventListener('click',()=>{const t=taLogins(); t.delete(b.dataset.untag.toLowerCase()); saveTAs(t); taChanged();}));
+}
+function taChanged(){ applyTAs(); state.choice={}; refreshStatus(); render(); }
+
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function load(k){try{return JSON.parse(localStorage.getItem(k)||'null');}catch(e){return null;}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
@@ -578,7 +621,7 @@ function prompt(dropId,stId,show,text){
   else d.classList.remove('next');
 }
 function refreshStatus(){
-  setStatus('stCanvas',state.canvas?state.canvasName+' · '+state.canvas.students.length+' students':'');
+  setStatus('stCanvas',state.canvas?state.canvasName+' · '+state.canvas.students.length+' students'+(state.canvas.taCount?' · '+state.canvas.taCount+' TA skipped':''):'');
   setStatus('stWW',state.ww.length?state.ww.length+' WeBWorK set'+(state.ww.length===1?'':'s')+' loaded':'');
   setStatus('stRB',state.rb.length?state.rb.length+' written or upload rubric file'+(state.rb.length===1?'':'s')+' loaded':'');
   prompt('dropCanvas','stCanvas',state.awaitingNext&&!state.canvas,"Add the next section's Canvas export");
@@ -593,7 +636,7 @@ async function ingest(files,boxId){
       const rows=parseCSV(await readFile(f)); const t=detectType(rows);
       if(!t) throw new Error(f.name+' was not recognized as a Canvas gradebook, WeBWorK scoring file, or rubric export.');
       if(t!==boxType) moved.push(f.name+' (read as '+{canvas:'the Canvas gradebook',webwork:'a WeBWorK file',rubric:'a rubric export'}[t]+')');
-      if(t==='canvas'){state.canvas=parseCanvas(rows);state.canvasName=f.name;state.choice={};}
+      if(t==='canvas'){state.canvas=parseCanvas(rows);state.canvasName=f.name;state.choice={};applyTAs();}
       else if(t==='webwork'){const w=parseWeBWorK(rows,f.name);state.ww=state.ww.filter(x=>x.id!==w.id);state.ww.push(w);state.wwKept=false;}
       else {const r=parseRubric(rows,f.name);state.rb=state.rb.filter(x=>x.filename!==r.filename);state.rb.push(r);}
     }catch(e){errs.push(e.message);}
@@ -622,6 +665,7 @@ function clearPage(keepWW){
   refreshStatus(); render();
   document.querySelector('.drops').scrollIntoView({behavior:'smooth',block:'center'});
 }
+$('taPick').addEventListener('change',e=>{const v=e.target.value; if(!v) return; const t=taLogins(); t.add(v.toLowerCase()); saveTAs(t); taChanged();});
 document.querySelectorAll('[data-reset]').forEach(b=>b.addEventListener('click',()=>clearPage(false)));
 document.querySelectorAll('[data-next]').forEach(b=>b.addEventListener('click',()=>clearPage(true)));
 
@@ -641,6 +685,7 @@ function rubricFor(w){
 }
 
 function render(){
+  renderTAs();
   const opts={overwrite:$('optOverwrite').checked,wwZero:$('optWWZero').checked,manual:manualNames};
   if(!state.canvas||!state.ww.length){
     $('sets').innerHTML='<p class="empty">'+(state.awaitingNext&&state.ww.length&&!state.canvas?"Add the next section's Canvas export and rubric exports to see the sets.":'Add a Canvas export and at least one WeBWorK file to see the sets.')+'</p>';
