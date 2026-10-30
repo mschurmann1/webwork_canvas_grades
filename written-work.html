@@ -427,7 +427,8 @@ function parseRubric(rows,filename){
    names with middle names or initials dropped, then any manual choice. */
 function linkRubric(rb,canvas,ww,manual){
   manual=manual||{};
-  const cands=canvas.students.filter(s=>s.login).map(s=>{
+  /* Match against the full roster so a marked TA's rubric row finds the TA (and is then ignored) instead of showing as unmatched */
+  const cands=(canvas.all||canvas.students).filter(s=>s.login).map(s=>{
     const login=s.login.toLowerCase(), w=ww&&ww.students.get(login);
     const variants=[s.tokens]; if(w&&w.tokens.length) variants.push(w.tokens);
     return {login,canvasId:s.canvasId.toLowerCase(),display:s.display,norms:new Set(variants.map(t=>t.join(''))),variants};
@@ -498,7 +499,7 @@ function computeSet(ww,rb,canvas,opts){
         heldZero++;
         results.set(s.row,{...info,state:'blank',zeroHeld:true,status:'0 held',
           reason:raw===0?'Written work is fully rated, but the student earned no WeBWorK credit in the set, so the grade would be 0.':'The only WeBWorK credit earned is on problems with no rubric column, so the grade would be 0.',
-          action:raw===0?'Enter 0 by hand in Canvas if intended, or turn on the option to enter 0 when WeBWorK shows no credit.':'Check that the rubric covers every WeBWorK problem in the set.'});
+          action:raw===0?'Check the student in WeBWorK to confirm they did not complete the set (written work uploaded after a set closes does not count). If the 0 is correct, enter it by hand in Canvas or turn on the option to enter 0 when WeBWorK shows no credit.':'Check that the rubric covers every WeBWorK problem in the set.'});
         return;
       }
       results.set(s.row,{...info,state:'ok',pct,rubricZero:pct===0}); filled++; return;
